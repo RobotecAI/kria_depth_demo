@@ -1,0 +1,11 @@
+build/
+acceleration/
+build-*/
+colcon-hardware-acceleration/
+install/
+install-*/
+log/
+src/acceleration/
+src/firmware/
+src/perception/
+src/tracing/

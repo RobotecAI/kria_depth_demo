@@ -1,0 +1,52 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/michal/krs_ws/install/include/**",
+        "/home/michal/ROSCON2023WorkDir/ROSCon2023Demo/ros2_ws/install/ur_calibration/include/**",
+        "/home/michal/ROSCON2023WorkDir/ROSCon2023Demo/ros2_ws/install/ur_robot_driver/include/**",
+        "/home/michal/ROSCON2023WorkDir/ROSCon2023Demo/ros2_ws/install/ur_controllers/include/**",
+        "/home/michal/ROSCON2023WorkDir/ROSCon2023Demo/ros2_ws/install/ur_dashboard_msgs/include/**",
+        "/home/michal/ROSCON2023WorkDir/ROSCon2023Demo/ros2_ws/install/lock_service_msgs/include/**",
+        "/home/michal/ROSCON2023WorkDir/ROSCon2023Demo/ros2_ws/install/lane_provider_msgs/include/**",
+        "/home/michal/ROSCON2023WorkDir/ROSCon2023Demo/ros2_ws/install/husky_msgs/include/**",
+        "/home/michal/ROSCON2023WorkDir/ROSCon2023Demo/ros2_ws/install/blind_path_follower_msgs/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/graphs/perception/perception_3nodes/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/accelerated_doublevadd_publisher/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/accelerated_vadd_publisher/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/doublevadd_publisher/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/faster_doublevadd_publisher/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/image_proc_adaptive/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/multiple_doublevadd_publisher/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/offloaded_doublevadd_publisher/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/simple_adder/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/vadd_publisher/include/**",
+        "/home/michal/krs_ws/src/acceleration/acceleration_examples/nodes/xrt_examples/streaming_k2k_mm_xrt/include/**",
+        "/home/michal/krs_ws/src/acceleration/adaptive_component/include/**",
+        "/home/michal/krs_ws/src/acceleration/ros2_kria/ros2_kria_power/include/**",
+        "/home/michal/krs_ws/src/acceleration/vitis_common/include/**",
+        "/home/michal/krs_ws/src/perception/image_pipeline/depth_image_proc/include/**",
+        "/home/michal/krs_ws/src/perception/image_pipeline/image_proc/include/**",
+        "/home/michal/krs_ws/src/perception/image_pipeline/image_publisher/include/**",
+        "/home/michal/krs_ws/src/perception/image_pipeline/image_rotate/include/**",
+        "/home/michal/krs_ws/src/perception/image_pipeline/image_view/include/**",
+        "/home/michal/krs_ws/src/perception/image_pipeline/stereo_image_proc/include/**",
+        "/home/michal/krs_ws/src/perception/image_pipeline/tracetools_image_pipeline/include/**",
+        "/home/michal/krs_ws/src/stereolbm_accel/include/**",
+        "/home/michal/krs_ws/src/tracing/tracetools_acceleration/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
