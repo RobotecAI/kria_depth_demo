@@ -26,8 +26,9 @@
 // Set the input and output pixel depth:
 #define IN_TYPE XF_8UC1
 #define PTR_IN_WIDTH 8
-#define OUT_TYPE XF_16UC1
-#define PTR_OUT_WIDTH 16
+#define OUT_TYPE XF_8UC1
+#define PTR_OUT_WIDTH 8
+
 
 // Set the optimization type:
 #define NPC XF_NPPC1

@@ -15,7 +15,8 @@
  */
 
 #include "xf_stereolbm_config.h"
-
+#include "vitis_common/imgproc/xf_stereolbm.hpp"
+#include "vitis_common/core/xf_convert_bitdepth.hpp"
 extern "C" {
 
 void stereolbm_accel(ap_uint<PTR_IN_WIDTH>* img_in_l,
@@ -36,7 +37,9 @@ void stereolbm_accel(ap_uint<PTR_IN_WIDTH>* img_in_l,
 
     xf::cv::Mat<IN_TYPE, HEIGHT, WIDTH, NPC> imgInputL(rows, cols);
     xf::cv::Mat<IN_TYPE, HEIGHT, WIDTH, NPC> imgInputR(rows, cols);
-    xf::cv::Mat<OUT_TYPE, HEIGHT, WIDTH, NPC> imgOutput(rows, cols);
+    xf::cv::Mat<XF_16UC1, HEIGHT, WIDTH, NPC> imgOutput(rows, cols);
+    xf::cv::Mat<OUT_TYPE, HEIGHT, WIDTH, NPC> imgOutput2(rows, cols);
+    
     xf::cv::xFSBMState<SAD_WINDOW_SIZE, NO_OF_DISPARITIES, PARALLEL_UNITS> bmState;
 
     // Initialize SBM State:
@@ -60,11 +63,14 @@ void stereolbm_accel(ap_uint<PTR_IN_WIDTH>* img_in_l,
     xf::cv::Array2xfMat<PTR_IN_WIDTH, IN_TYPE, HEIGHT, WIDTH, NPC>(img_in_r, imgInputR);
 
     // Run xfOpenCV kernel:
-    xf::cv::StereoBM<SAD_WINDOW_SIZE, NO_OF_DISPARITIES, PARALLEL_UNITS, IN_TYPE, OUT_TYPE, HEIGHT, WIDTH, NPC,
+    xf::cv::StereoBM<SAD_WINDOW_SIZE, NO_OF_DISPARITIES, PARALLEL_UNITS, IN_TYPE, XF_16UC1, HEIGHT, WIDTH, NPC,
                      XF_USE_URAM>(imgInputL, imgInputR, imgOutput, bmState);
 
+    
+    xf::cv::convertTo<XF_16UC1,OUT_TYPE, HEIGHT, WIDTH, NPC>(imgOutput,imgOutput2,XF_CONVERT_16U_TO_8U,0);
+    
     // Convert _dst xf::Mat object to output array:
-    xf::cv::xfMat2Array<PTR_OUT_WIDTH, OUT_TYPE, HEIGHT, WIDTH, NPC>(imgOutput, img_out);
+    xf::cv::xfMat2Array<PTR_OUT_WIDTH, OUT_TYPE, HEIGHT, WIDTH, NPC>(imgOutput2, img_out);
 
     return;
 } // End of kernel

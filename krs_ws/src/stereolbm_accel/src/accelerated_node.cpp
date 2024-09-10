@@ -108,9 +108,9 @@ void AcceleratedNode::ExecuteKernel()
 
 	size_t image_in_size_bytes = rows * cols * sizeof(unsigned char);
 	size_t vec_in_size_bytes = bm_state_params.size() * sizeof(unsigned char);
-	size_t image_out_size_bytes = rows * cols * sizeof(unsigned short int);
+	size_t image_out_size_bytes = rows * cols * sizeof(unsigned char);
 
-	result_hls.create(rows, cols, CV_16UC1);
+	// result_hls.create(rows, cols, CV_16UC1);
 	result_hls_8u.create(rows, cols, CV_8UC1);
 
 	// Allocate the buffers:
@@ -168,8 +168,8 @@ void AcceleratedNode::ExecuteKernel()
 			CL_TRUE,         // blocking call
 			0,               // offset
 			image_out_size_bytes,
-			result_hls.data, // Data will be stored here
-			nullptr, &event);
+			result_hls_8u.data, // Data will be stored here
+			nullptr, nullptr);
 
 	auto tsBufferRead3 = std::chrono::high_resolution_clock::now();
 
@@ -187,7 +187,7 @@ void AcceleratedNode::ExecuteKernel()
 
 
 	// Convert 16U output to 8U output:
-	result_hls.convertTo(result_hls_8u, CV_8U, (256.0 / NO_OF_DISPARITIES) / (16.));
+	//result_hls.convertTo(result_hls_8u, CV_8U, (256.0 / NO_OF_DISPARITIES) / (16.));
 
 
 	output_image.header     = cv_ptr_left->header;
@@ -195,7 +195,6 @@ void AcceleratedNode::ExecuteKernel()
     output_image.image = cv::Mat{ rows,cols, CV_8U, result_hls_8u.data};
 
 }
-
 
 
 AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
