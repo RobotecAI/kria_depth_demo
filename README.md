@@ -59,6 +59,7 @@ Source Vitis and ROS 2 and build tools for x86.
 Note that building needs super user acces. 
 ```
 cd $KRS_WS
+unset $RMW_IMPLEMENTATION
 source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
 source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
 export PATH="/usr/bin":$PATH  # FIXME: adjust path for CMake 3.5+
@@ -95,4 +96,105 @@ source ./install/setup.bash  # Source KRS
 export PATH="/usr/bin":$PATH
 
 colcon build --executor sequential --event-handlers console_direct+ --build-base=build-kr260-ubuntu --install-base=install-kr260-ubuntu --merge-install --mixin kr260 --cmake-args -DNOKERNELS=false --packages-select stereolbm_accel
+```
+
+
+Next, you need to copy to board:
+```
+scp -r install-kr260-ubuntu/lib/stereolbm_accel/  kria_loc2:/home/mpelka/
+```
+
+Next on the board:
+```
+
+sudo cp -r /home/mpelka/stereolbm_accel /usr/lib/firmware/xilinx
+sudo xmutil listapps #Queries on target FW resource manager daemon of pre-built app bitstreams available on the platform and provides summary to CLI.
+sudo xmutil unloadapp #Removes application bitstream. (Takes slot number, default 0)
+sudo xmutil loadapp stereolbm_accel #Loads requested application configuration bitstream to programmable logic if the device is available.
+```
+
+
+Rest can be done as user
+```
+source /home/mpelka/krs_ws/install/setup.bash
+cd /home/mpelka/stereolbm_accel
+./stereolbm_accel_tb
+```
+
+## DDS tunning
+We have peer-to-peer connection with `cyclone-dds`.
+
+Please create file with dds configuration on both x86 and Kria board.
+This configuration assumes that peers adreses are:
+ - 192.168.99.1 
+ - 192.168.99.2
+```
+<?xml version="1.0" encoding="UTF-8" ?>
+<CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config
+https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
+    <Domain id="any">    
+	<General>
+      		<AllowMulticast>default</AllowMulticast>
+      		<MaxMessageSize>65500B</MaxMessageSize>
+    	</General>
+	<Internal>
+		<SocketReceiveBufferSize min="10MB" max="default" />
+		<Watermarks>
+        		<WhcHigh>500kB</WhcHigh>
+      		</Watermarks>
+	</Internal>
+	<Discovery>
+		<Peers>
+			<Peer address="192.168.99.1"/>
+			<Peer address="192.168.99.2"/>
+		</Peers>
+
+      		<ParticipantIndex>auto</ParticipantIndex>
+      		<MaxAutoParticipantIndex>1000</MaxAutoParticipantIndex>
+    	</Discovery>
+    </Domain>
+</CycloneDDS>
+```
+
+Next add reference created file (e.g. `~/kria_cyclone.xml`) in `~/.bashrc`:
+```
+export CYCLONEDDS_URI=file:///home/mpelka/kria_cyclone.xml
+
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+#export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
+export ROS_DOMAIN_ID=34
+```
+
+Finally setup network stack on both x86 and Kria:
+
+
+```
+sudo vim /etc/sysctl.d/10-cyclone-max.conf
+```
+and insert:
+```
+net.ipv4.ipfrag_time=3
+net.ipv4.ipfrag_high_thresh=134217728
+net.core.rmem_max=2147483647
+```
+
+Reboot both x86 and Kria.
+
+### Simulator 
+Grab project from [ROSCon2023Demo/test_stereo](https://github.com/RobotecAI/ROSCon2023Demo/tree/mp/test_stereo).
+Make sure to use `test_stereo` and build following instructions.
+
+### Running system
+
+On Kria:
+```
+source /home/mpelka/krs_ws/install/setup.bash
+cd /home/mpelka/stereolbm_accel
+./stereolbm_accel_tb
+```
+
+On x86:
+```
+RosCon2023.GameLaucher -r_fullscreen=false -bg_ConnectToAssetProcessor=0 -r_width=2560 -r_height=1440 -r_resolutionMode=1
 ```
