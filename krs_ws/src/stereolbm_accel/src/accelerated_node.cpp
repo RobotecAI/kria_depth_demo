@@ -56,7 +56,7 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 
 
 #define _TEXTURE_THRESHOLD_ 20
-#define _UNIQUENESS_RATIO_ 15
+#define _UNIQUENESS_RATIO_ 100
 #define _PRE_FILTER_CAP_ 31
 #define _MIN_DISP_ 0
 
@@ -160,6 +160,9 @@ void AcceleratedNode::ExecuteKernel()
 	//std::cout << "JASSI DEBUG 5  " << std::endl;
 	// Execute the kernel:
 	OCL_CHECK(err, err = queue_->enqueueTask(*krnl_));
+	// Make it blocking by waiting for all commands to complete
+	OCL_CHECK(err, err = queue_->finish());
+
 	auto tsKernel2 = std::chrono::high_resolution_clock::now();
 
 	// std::cout << "JASSI DEBUG 6  " << std::endl;
@@ -204,7 +207,7 @@ void AcceleratedNode::ExecuteKernel()
 AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
 : rclcpp::Node("AcceleratedNode", options)
 {
-  	rclcpp::QoS  qos_profile = rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(); // rclcpp::SensorDataQoS();
+  	rclcpp::QoS  qos_profile = rclcpp::QoS(rclcpp::KeepLast(1)).reliable(); // rclcpp::SensorDataQoS();
 
 	const rmw_qos_profile_t my_qos =
 	{
