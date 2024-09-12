@@ -17,7 +17,7 @@
 #include "xf_stereolbm_config.h"
 #include "vitis_common/imgproc/xf_stereolbm.hpp"
 #include "vitis_common/core/xf_convert_bitdepth.hpp"
-
+#include "vitis_common/imgproc/xf_convertscaleabs.hpp"
 extern "C" {
 
 void stereolbm_accel(ap_uint<PTR_IN_WIDTH>* img_in_l,
@@ -40,6 +40,7 @@ void stereolbm_accel(ap_uint<PTR_IN_WIDTH>* img_in_l,
     xf::cv::Mat<IN_TYPE, HEIGHT, WIDTH, NPC> imgInputR(rows, cols);
     xf::cv::Mat<XF_16UC1, HEIGHT, WIDTH, NPC> imgOutputStereo16(rows, cols);
     xf::cv::Mat<OUT_TYPE, HEIGHT, WIDTH, NPC> imgOutputStereo8(rows, cols);
+    xf::cv::Mat<OUT_TYPE, HEIGHT, WIDTH, NPC> imgOutputMedian(rows, cols);
 
     
     uint32_t histogram[256];
@@ -55,7 +56,7 @@ void stereolbm_accel(ap_uint<PTR_IN_WIDTH>* img_in_l,
 // clang-format off
 	#pragma HLS STREAM variable=imgInputL.data depth=2
 	#pragma HLS STREAM variable=imgInputR.data depth=2
-	#pragma HLS STREAM variable=imgOutputStereo8.data depth=2
+	#pragma HLS STREAM variable=imgOutputMedian.data depth=2
 // clang-format on
 
 // clang-format off
@@ -70,12 +71,12 @@ void stereolbm_accel(ap_uint<PTR_IN_WIDTH>* img_in_l,
     xf::cv::StereoBM<SAD_WINDOW_SIZE, NO_OF_DISPARITIES, PARALLEL_UNITS, IN_TYPE, XF_16UC1, HEIGHT, WIDTH, NPC,
                      XF_USE_URAM>(imgInputL, imgInputR, imgOutputStereo16, bmState);
 
-    
-    xf::cv::convertTo<XF_16UC1,OUT_TYPE, HEIGHT, WIDTH, NPC>(imgOutputStereo16,imgOutputStereo8,XF_CONVERT_16U_TO_8U,0);
+    xf::cv::convertTo<XF_16UC1,OUT_TYPE, HEIGHT, WIDTH, NPC>(imgOutputStereo16,imgOutputStereo8,XF_CONVERT_16U_TO_8U,4);
 
+    xf::cv::medianBlur<WINDOW_SIZE, XF_BORDER_REPLICATE, OUT_TYPE, HEIGHT, WIDTH, NPC1>(imgOutputStereo8, imgOutputMedian);
 
     // Convert _dst xf::Mat object to output array:
-    xf::cv::xfMat2Array<PTR_OUT_WIDTH, OUT_TYPE, HEIGHT, WIDTH, NPC>(imgOutputStereo8, img_out);
+    xf::cv::xfMat2Array<PTR_OUT_WIDTH, OUT_TYPE, HEIGHT, WIDTH, NPC>(imgOutputMedian, img_out);
 
     return;
 } // End of kernel
