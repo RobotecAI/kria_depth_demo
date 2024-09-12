@@ -24,3 +24,11 @@
 #define PARALLEL_UNITS 32
 
 #define XF_USE_URAM false
+
+#define NO 1 // Normal Operation
+#define RO 0 // Resource Optimized
+
+#define RGB 1
+#define GRAY 0
+/* Filter window size*/
+#define WINDOW_SIZE 5
