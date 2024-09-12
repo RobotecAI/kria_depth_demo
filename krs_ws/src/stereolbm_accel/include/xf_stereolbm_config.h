@@ -21,6 +21,7 @@
 #include "vitis_common/common/xf_common.hpp"
 #include "vitis_common/common/xf_utility.hpp"
 #include "vitis_common/imgproc/xf_stereolbm.hpp"
+#include "vitis_common/imgproc/xf_median_blur.hpp"
 #include "xf_config_params.h"
 
 // Set the input and output pixel depth:
@@ -32,6 +33,46 @@
 
 // Set the optimization type:
 #define NPC XF_NPPC1
+
+// Set the optimization type:
+#if NO == 1
+#define NPC1 XF_NPPC1
+#define PTR_WIDTH 32
+#else
+
+#if GRAY
+#define NPC1 XF_NPPC8
+#else
+#define NPC1 XF_NPPC4
+#endif
+
+#define PTR_WIDTH 128
+#endif
+
+// Set the pixel depth:
+#if GRAY
+#define TYPE XF_8UC1
+#else
+#define TYPE XF_8UC3
+#endif
+
+#if XF_CONVERT16UTO8U
+#define IN_TYPE XF_16UC1
+#define OUT_TYPE XF_8UC1
+#define IN_BYTE 2
+#define OUT_BYTE 1
+#define CONVERT_TYPE XF_CONVERT_16U_TO_8U
+#define OCV_INTYPE CV_16UC1
+#define OCV_OUTTYPE CV_8UC1
+#if NO
+#define PTR_IN_WIDTH 16
+#define PTR_OUT_WIDTH 8
+#else
+#define PTR_IN_WIDTH 128
+#define PTR_OUT_WIDTH 64
+#endif
+#endif
+
 
 /* config width and height */
 #define WIDTH 1280

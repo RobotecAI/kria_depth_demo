@@ -41,15 +41,17 @@ class DepthVisualizer(Node):
             median = np.median(depth_image)
             print(f'Max: {max}, Min: {min} Med : {median}')
             # Normalize the depth image to 0-255
-            depth_normalized = depth_image
-            #depth_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX)
+
+            depth_unit =  depth_image/32
+
+            depth_normalized = (depth_unit * 255).astype(np.uint8)
 
             # Convert to 8-bit image for colormap
             depth_8u = np.uint8(depth_normalized)
             depth_8u = 255-depth_8u
             # Apply the colormap
             depth_colormap = cv2.applyColorMap(depth_8u, cv2.COLORMAP_BONE)
-            mask = depth_image > 200
+            mask = depth_image > 15
             depth_colormap[mask] = [0, 0, 255]
             depth_colormap = cv2.resize(depth_colormap, (int(depth_colormap.shape[1] * 0.5), int(depth_colormap.shape[0] * 0.5)))
             
@@ -59,7 +61,7 @@ class DepthVisualizer(Node):
             if elapsed_time > 0:
                 fps = 1.0 / elapsed_time
                 self.fps.append(fps)
-                if len(self.fps) > 100:
+                if len(self.fps) > 50:
                     self.fps.pop(0)
             self.prev_time = current_time
 
