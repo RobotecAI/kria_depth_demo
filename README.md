@@ -167,7 +167,7 @@ https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclo
 ```
 
 Next add reference created file (e.g. `~/kria_cyclone.xml`) in `~/.bashrc`:
-``````bash 
+```bash 
 export CYCLONEDDS_URI=file:///home/$USER/kria_cyclone.xml
 
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
