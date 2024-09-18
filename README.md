@@ -26,7 +26,7 @@ sudo apt-get install libtinfo5 libncurses5
 
 Enter to 'krs_ws' workspace. For convience setup envioroment variable:
 ```
-export KRS_WS=/home/michal/kria_depth_demo/krs_ws/
+export KRS_WS=/home/$USER/kria_depth_demo/krs_ws/
 ```
 
 Install prerequisits (according to [Install KRS](https://xilinx.github.io/KRS/sphinx/build/html/docs/install.html))
@@ -70,7 +70,7 @@ colcon build --merge-install  # about 18 mins in an AMD Ryzen 5 PRO 4650G
 ## Prepare system for cross compilation
 
 ```
-sudo ln -s ~/krs_ws/install/../acceleration/firmware/kr260/sysroots/aarch64-xilinx-linux/usr/lib/aarch64-linux-gnu/libpython3.10.so.1.0 /usr/lib/aarch64-linux-gnu/libpython3.10.so -f
+sudo ln -s $KRS_WS/install/../acceleration/firmware/kr260/sysroots/aarch64-xilinx-linux/usr/lib/aarch64-linux-gnu/libpython3.10.so.1.0 /usr/lib/aarch64-linux-gnu/libpython3.10.so -f
 
 ```
 ## Build accelerated node
@@ -116,7 +116,7 @@ sudo xmutil loadapp stereolbm_accel #Loads requested application configuration b
 
 Rest can be done as user
 ```
-source /home/mpelka/krs_ws/install/setup.bash
+source /home/$USER/krs_ws/install/setup.bash
 cd /home/mpelka/stereolbm_accel
 ./stereolbm_accel_tb
 ```
@@ -158,7 +158,7 @@ https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclo
 
 Next add reference created file (e.g. `~/kria_cyclone.xml`) in `~/.bashrc`:
 ```
-export CYCLONEDDS_URI=file:///home/mpelka/kria_cyclone.xml
+export CYCLONEDDS_URI=file:///home/$USER/kria_cyclone.xml
 
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 #export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
