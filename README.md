@@ -47,7 +47,7 @@ Install repositories that are part of [Kria Robotic Stack](https://xilinx.github
 Note!
 Before proceed with cross-compilation, make sure that RMW_IMPLEMENTATION is not set [#KRS/84](https://github.com/Xilinx/KRS/issues/97):
 ```bash 
-unset $RMW_IMPLEMENTATION
+unset RMW_IMPLEMENTATION
 ```
 
 ```bash 
@@ -59,7 +59,7 @@ Source Vitis and ROS 2 and build tools for x86.
 Note that the building needs super user access. 
 ```bash 
 cd $KRS_WS
-unset $RMW_IMPLEMENTATION
+unset RMW_IMPLEMENTATION
 source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
 source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
 export PATH="/usr/bin":$PATH  # FIXME: adjust path for CMake 3.5+
@@ -77,7 +77,7 @@ sudo ln -s $KRS_WS/install/../acceleration/firmware/kr260/sysroots/aarch64-xilin
 
 ```bash 
 cd $KRS_WS
-unset $RMW_IMPLEMENTATION
+unset RMW_IMPLEMENTATION
 source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
 source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
 source ./install/setup.bash  # Source KRS
@@ -88,7 +88,7 @@ colcon acceleration select kr260
 
 ```bash 
 cd $KRS_WS
-unset $RMW_IMPLEMENTATION
+unset RMW_IMPLEMENTATION
 source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
 source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
 source ./install/setup.bash  # Source KRS
@@ -100,7 +100,7 @@ colcon build --executor sequential --event-handlers console_direct+ --build-base
 To build only depth node:
 ```bash 
 cd $KRS_WS
-unset $RMW_IMPLEMENTATION
+unset RMW_IMPLEMENTATION
 source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
 source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
 source ./install/setup.bash  # Source KRS
