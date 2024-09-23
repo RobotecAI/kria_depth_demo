@@ -105,7 +105,7 @@ source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
 source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
 source ./install/setup.bash  # Source KRS
 export PATH="/usr/bin":$PATH
-
+rm -r build-kr260-ubuntu/stereolbm_accel/
 colcon build --executor sequential --event-handlers console_direct+ --build-base=build-kr260-ubuntu --install-base=install-kr260-ubuntu --merge-install --mixin kr260 --cmake-args -DNOKERNELS=false --packages-select stereolbm_accel
 ```
 
