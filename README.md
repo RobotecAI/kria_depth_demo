@@ -138,14 +138,19 @@ Please create a file with the dds configuration on both the x86 and Kria board.
 This configuration assumes that peers addresses are:
  - 192.168.99.1 
  - 192.168.99.2
-```xml
+Do not forget to adjust inteface name:
+```
 <?xml version="1.0" encoding="UTF-8" ?>
 <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config
 https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
     <Domain id="any">    
 	<General>
-      		<AllowMulticast>default</AllowMulticast>
-      		<MaxMessageSize>65500B</MaxMessageSize>
+		<Interfaces>
+			<!--- Interface name below --->
+			<NetworkInterface name="enp46s0"/>
+		</Interfaces>
+      	<AllowMulticast>default</AllowMulticast>
+      	<MaxMessageSize>65500B</MaxMessageSize>
     	</General>
 	<Internal>
 		<SocketReceiveBufferSize min="10MB" max="default" />
