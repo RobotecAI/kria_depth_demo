@@ -109,15 +109,16 @@ rm -r build-kr260-ubuntu/stereolbm_accel/
 colcon build --executor sequential --event-handlers console_direct+ --build-base=build-kr260-ubuntu --install-base=install-kr260-ubuntu --merge-install --mixin kr260 --cmake-args -DNOKERNELS=false --packages-select stereolbm_accel
 ```
 
-Next, you need to copy to board:
+Next, you need to copy to board (assuming that kria is configured as host in your `.ssh/config`, and user name is 'ubuntu'):
 ```
-scp -r install-kr260-ubuntu/lib/stereolbm_accel/  kria_loc2:/home/mpelka/
-```
-
-Next on the board:
+cd $KRS_WS
+scp -r install-kr260-ubuntu/lib/stereolbm_accel  kria:/home/ubuntu/
 ```
 
-sudo cp -r /home/mpelka/stereolbm_accel /usr/lib/firmware/xilinx
+Next on the board (after `ssh kria`):
+```
+
+sudo cp -r /home/$USER/stereolbm_accel /usr/lib/firmware/xilinx
 sudo xmutil listapps #Queries on target FW resource manager daemon of pre-built app bitstreams available on the platform and provides summary to CLI.
 sudo xmutil unloadapp #Removes application bitstream. (Takes slot number, default 0)
 sudo xmutil loadapp stereolbm_accel #Loads requested application configuration bitstream to programmable logic if the device is available.
@@ -127,7 +128,7 @@ sudo xmutil loadapp stereolbm_accel #Loads requested application configuration b
 Rest can be done as user
 ```
 source /home/$USER/krs_ws/install/setup.bash
-cd /home/mpelka/stereolbm_accel
+cd /home/$USER/stereolbm_accel
 ./stereolbm_accel_tb
 ```
 
