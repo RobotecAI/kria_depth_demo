@@ -176,7 +176,7 @@ export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 export ROS_DOMAIN_ID=34
 ```
 
-Finally set network stack on both x86 and Kria:
+Finally set the network stack on both x86 and Kria:
 
 
 ```
@@ -199,8 +199,8 @@ Make sure to use `test_stereo` and build following instructions.
 
 On Kria:
 ```
-source /home/mpelka/krs_ws/install/setup.bash
-cd /home/mpelka/stereolbm_accel
+source /home/${USER}/krs_ws/install/setup.bash
+cd /home/${USER}/stereolbm_accel
 ./stereolbm_accel_tb
 ```
 
