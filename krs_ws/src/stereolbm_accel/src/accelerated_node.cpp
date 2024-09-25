@@ -187,9 +187,7 @@ void AcceleratedNode::ExecuteKernel()
 
 
 	// Convert 16U output to 8U output:
-	result_hls.convertTo(result_hls_8u, CV_8U, (256.0 / NO_OF_DISPARITIES) / (16.));
-
-
+	result_hls.convertTo(result_hls_8u, CV_8U, 1.f/16.f);
 	output_image.header     = cv_ptr_left->header;
     output_image.encoding   = "mono8";
     output_image.image = cv::Mat{ rows,cols, CV_8U, result_hls_8u.data};

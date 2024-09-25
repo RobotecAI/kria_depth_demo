@@ -38,7 +38,8 @@ class DepthVisualizer(Node):
 
             max = np.max(depth_image)
             min = np.min(depth_image)
-            print(f'Max: {max}, Min: {min}')
+            median = np.median(depth_image)
+            print(f'Max: {max}, Min: {min} Med : {median}')
             # Normalize the depth image to 0-255
             depth_normalized = depth_image
             #depth_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX)

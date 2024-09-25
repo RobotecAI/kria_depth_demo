@@ -33,6 +33,6 @@
 #define NPC XF_NPPC1
 
 /* config width and height */
-#define WIDTH 1920
-#define HEIGHT 1080
+#define WIDTH 1280
+#define HEIGHT 720
 #endif // _XF_STEREOBM_CONFIG_H_

@@ -1,3 +1,5 @@
+# usage: 
+#  python3 publish_with_know_disparity.py --ros-args -p shift_pixels:=-1
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -12,7 +14,7 @@ class DualImagePublisher(Node):
 
         # Declare ROS 2 parameters
         self.declare_parameter('image_file', 'left.png')
-        self.declare_parameter('shift_pixels', -90)
+        self.declare_parameter('shift_pixels', -1)
  
         # Get parameters
         image_file = self.get_parameter('image_file').get_parameter_value().string_value
@@ -35,6 +37,7 @@ class DualImagePublisher(Node):
 
         # Load image
         self.left_image = cv2.imread(image_file)
+        self.left_image = cv2.cvtColor(self.left_image, cv2.COLOR_BGR2GRAY)
         if self.left_image is None:
             self.get_logger().error(f"Failed to load image from {image_file}")
             return
@@ -58,8 +61,8 @@ class DualImagePublisher(Node):
 
     def publish_images(self):
         # Convert OpenCV images to ROS 2 Image messages
-        left_image_msg = self.bridge.cv2_to_imgmsg(self.left_image, encoding='bgr8')
-        right_image_msg = self.bridge.cv2_to_imgmsg(self.right_image, encoding='bgr8')
+        left_image_msg = self.bridge.cv2_to_imgmsg(self.left_image, encoding='mono8')
+        right_image_msg = self.bridge.cv2_to_imgmsg(self.right_image, encoding='mono8')
 
         # Publish the images
         self.left_publisher.publish(left_image_msg)
