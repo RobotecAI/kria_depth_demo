@@ -47,6 +47,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 #include <chrono>
+
+
+
 using namespace message_filters;
 
 // Forward declaration of utility functions included at the end of this file
@@ -65,136 +68,107 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 
 void AcceleratedNode::InitKernel()
 {
-	cl_int err;
-	unsigned fileBufSize;
-
-	// Get the device:
-	std::vector<cl::Device> devices 	= get_xilinx_devices();
-	cl::Device device 			= devices[0];
 
 
-	// Context, command queue and device name:
-	OCL_CHECK(err, context_ 		= new cl::Context(device, NULL, NULL, NULL, &err));
-	OCL_CHECK(err, queue_ 			= new cl::CommandQueue(*context_, device, CL_QUEUE_PROFILING_ENABLE, &err));
-	OCL_CHECK(err, std::string device_name 	= device.getInfo<CL_DEVICE_NAME>(&err));
-	
-	std::cout << "INFO: Device found - " << device_name << std::endl;
+  device = xrt::device(0);
+  auto uuid = device.load_xclbin("stereolbm_accel.xclbin");
+  stereo_accel = xrt::kernel(device, uuid.get(), "stereolbm_accel");
 
-	char* fileBuf 				= read_binary_file(XCLBIN_NAME, fileBufSize);
-
-	cl::Program::Binaries bins{{fileBuf, fileBufSize}};
-	devices.resize(1);
-	OCL_CHECK(err, cl::Program program(*context_, devices, bins, NULL, &err));
-
-	// Create a kernel:
-	OCL_CHECK(err, krnl_ 			= new cl::Kernel(program, KERNEL_NAME, &err));
+  left_bo = xrt::bo (device, image_in_size_bytes, stereo_accel.group_id(0));
+  right_bo = xrt::bo (device,image_in_size_bytes, stereo_accel.group_id(1));
+  params_bo = xrt::bo (device,vec_in_size_bytes, stereo_accel.group_id(2));
+  out_img_bo = xrt::bo (device,image_out_size_bytes, xrt::bo::flags::cacheable, stereo_accel.group_id(3));
 
 }
 
 void AcceleratedNode::ExecuteKernel()
 {
-	int rows = 720;
-	int cols = 1280;
 
-	// OpenCL section:
-	cl_int err;
+  struct timespec begin_cpu, end_cpu, begin_hw, end_hw;
+  struct timespec t_memin, t_krnl_exec;
+  long seconds, nanoseconds;
+  double hw_time, memin_time, memout_time, krnl_exec_time;
 
-	// OpenCL section:
-	std::vector<unsigned char> bm_state_params(4);
-	bm_state_params[0] = _PRE_FILTER_CAP_;
-	bm_state_params[1] = _UNIQUENESS_RATIO_;
-	bm_state_params[2] = _TEXTURE_THRESHOLD_;
-	bm_state_params[3] = _MIN_DISP_;
-
-	size_t image_in_size_bytes = rows * cols * sizeof(unsigned char);
-	size_t vec_in_size_bytes = bm_state_params.size() * sizeof(unsigned char);
-	size_t image_out_size_bytes = rows * cols * sizeof(unsigned char);
-
-	// result_hls.create(rows, cols, CV_16UC1);
-	result_hls_8u.create(rows, cols, CV_8UC1);
-
-	// Allocate the buffers:
-	OCL_CHECK(err, cl::Buffer buffer_inImageL(*context_, CL_MEM_READ_ONLY, image_in_size_bytes, NULL, &err));
-	OCL_CHECK(err, cl::Buffer buffer_inImageR(*context_, CL_MEM_READ_ONLY, image_in_size_bytes, NULL, &err));
-	OCL_CHECK(err, cl::Buffer buffer_inVecBM(*context_, CL_MEM_READ_ONLY, vec_in_size_bytes, NULL, &err));
-	OCL_CHECK(err, cl::Buffer buffer_outImage(*context_, CL_MEM_WRITE_ONLY, image_out_size_bytes, NULL, &err));
-
-	// Set kernel arguments:
-	OCL_CHECK(err, err = krnl_->setArg(0, buffer_inImageL));
-	OCL_CHECK(err, err = krnl_->setArg(1, buffer_inImageR));
-	OCL_CHECK(err, err = krnl_->setArg(2, buffer_inVecBM));
-	OCL_CHECK(err, err = krnl_->setArg(3, buffer_outImage));
-	OCL_CHECK(err, err = krnl_->setArg(4, rows));
-	OCL_CHECK(err, err = krnl_->setArg(5, cols));
+  auto left_map = left_bo.map();
+  auto right_map = right_bo.map();
+  auto param_map = params_bo.map();
 
 
-	auto start_time = std::chrono::high_resolution_clock::now();
-	//std::cout << "JASSI DEBUG 3  " << std::endl;
-	// Initialize the buffers:
-	cl::Event event;
-
-	OCL_CHECK(err, queue_->enqueueWriteBuffer(buffer_inImageL,     // buffer on the FPGA
-				CL_TRUE,             // blocking call
-				0,                   // buffer offset in bytes
-				image_in_size_bytes, // Size in bytes
-				cv_ptr_left->image.data,       // Pointer to the data to copy
-				nullptr, &event));
-
-	//std::cout << "JASSI DEBUG 4 " << std::endl;
-	OCL_CHECK(err, queue_->enqueueWriteBuffer(buffer_inImageR,     // buffer on the FPGA
-				CL_TRUE,             // blocking call
-				0,                   // buffer offset in bytes
-				image_in_size_bytes, // Size in bytes
-				cv_ptr_right->image.data,      // Pointer to the data to copy
-				nullptr, &event));
-
-	OCL_CHECK(err, queue_->enqueueWriteBuffer(buffer_inVecBM,         // buffer on the FPGA
-				CL_TRUE,                // blocking call
-				0,                      // buffer offset in bytes
-				vec_in_size_bytes,      // Size in bytes
-				bm_state_params.data(), // Pointer to the data to copy
-				nullptr, &event));
-
-	auto tsBufferWrite1 = std::chrono::high_resolution_clock::now();
-	
-	//std::cout << "JASSI DEBUG 5  " << std::endl;
-	// Execute the kernel:
-	OCL_CHECK(err, err = queue_->enqueueTask(*krnl_));
-	// Make it blocking by waiting for all commands to complete
-	OCL_CHECK(err, err = queue_->finish());
-
-	auto tsKernel2 = std::chrono::high_resolution_clock::now();
-
-	// std::cout << "JASSI DEBUG 6  " << std::endl;
-	// Copy Result from Device Global Memory to Host Local Memory
-	queue_->enqueueReadBuffer(buffer_outImage, // This buffers data will be read
-			CL_TRUE,         // blocking call
-			0,               // offset
-			image_out_size_bytes,
-			result_hls_8u.data, // Data will be stored here
-			nullptr, nullptr);
-
-	auto tsBufferRead3 = std::chrono::high_resolution_clock::now();
-
-	{
-		using namespace std::chrono;
-		auto durationWrite = duration_cast<microseconds>(tsBufferWrite1 - start_time).count();
-		auto durationKernel = duration_cast<microseconds>(tsKernel2 - tsBufferWrite1).count();
-		auto durationRead = duration_cast<microseconds>(tsBufferRead3 - tsKernel2).count();
-		printf(" Write : %f, Kernel : %f, Read : %f,   ms \n", 0.001f*durationWrite, 0.001f*durationKernel, 0.001f*durationRead );
-	}
-    
-//	std::cout << "JASSI DEBUG 7  " << std::endl;
-	// Clean up:
-	queue_->finish();
+  bm_state_params[0] = _PRE_FILTER_CAP_;
+  bm_state_params[1] = _UNIQUENESS_RATIO_;
+  bm_state_params[2] = _TEXTURE_THRESHOLD_;
+  bm_state_params[3] = _MIN_DISP_;
 
 
+  result_hls_8u.create(rows, cols, CV_8UC1);
 
-	//result_hls.convertTo(result_hls_8u, CV_8U, (256.0 / NO_OF_DISPARITIES) / (16.));
+  assert(cv_ptr_left->image.rows == rows);
+  assert(cv_ptr_left->image.cols == cols);
+  assert(cv_ptr_right->image.rows == rows);
+  assert(cv_ptr_right->image.cols == cols);
 
-	output_image.header     = cv_ptr_left->header;
-    output_image.encoding   = "mono8";
-    output_image.image = cv::Mat{ rows,cols, CV_8U, result_hls_8u.data};
+
+  //Load left image in bo_map
+
+  std::memcpy((unsigned char*)left_map, cv_ptr_left->image.data, image_in_size_bytes);
+  std::memcpy((unsigned char*)right_map, cv_ptr_right->image.data, image_in_size_bytes);
+  std::memcpy((unsigned char*)param_map,bm_state_params.data(), vec_in_size_bytes );
+
+
+  //DMA from host to device
+  clock_gettime(CLOCK_REALTIME, &begin_hw);
+  left_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  right_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  params_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
+  clock_gettime(CLOCK_REALTIME, &t_memin);
+  //Execute the HLS kernel
+  auto run = stereo_accel(left_bo, right_bo, params_bo, out_img_bo, rows, cols );
+  run.wait();
+  clock_gettime(CLOCK_REALTIME, &t_krnl_exec);
+
+  cv::Mat hls_disp;
+  hls_disp.create(rows, cols, CV_8UC1);
+  //Copy the output buffer to cv:mat to compare and save the img
+  std::memcpy(hls_disp.data, out_img_bo.map(), image_out_size_bytes);
+
+  //Total hw time
+  seconds = end_hw.tv_sec - begin_hw.tv_sec;
+  nanoseconds = end_hw.tv_nsec - begin_hw.tv_nsec;
+  hw_time = seconds + nanoseconds * 1e-9;
+  hw_time = hw_time * 1e3;
+
+
+  //mem in time
+  seconds = t_memin.tv_sec - begin_hw.tv_sec;
+  nanoseconds = t_memin.tv_nsec - begin_hw.tv_nsec;
+  memin_time = seconds + nanoseconds * 1e-9;
+  memin_time = memin_time * 1e3;
+
+
+  //kernel exec time
+
+  seconds = t_krnl_exec.tv_sec - t_memin.tv_sec;
+  nanoseconds = t_krnl_exec.tv_nsec - t_memin.tv_nsec;
+  krnl_exec_time = seconds + nanoseconds * 1e-9;
+  krnl_exec_time = krnl_exec_time * 1e3;
+
+  // mem out time
+
+  seconds = end_hw.tv_sec - t_krnl_exec.tv_sec;
+  nanoseconds = end_hw.tv_nsec - t_krnl_exec.tv_nsec ;
+  memout_time = seconds + nanoseconds * 1e-9;
+  memout_time = memout_time * 1e3;
+
+  std::cout.precision(3);
+  std::cout << std::fixed;
+  std::cout << "HLS time is " << hw_time << "ms" << std::endl;
+  std::cout << "Memory in time " << memin_time << "ms | Kernel Execution time is " << krnl_exec_time << "ms | Memory out time is: " << memout_time << "ms" <<  std::endl;
+
+
+  output_image.header     = cv_ptr_left->header;
+  output_image.encoding   = "mono8";
+  output_image.image = hls_disp;
 
 }
 
@@ -227,7 +201,7 @@ AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::N
 
  	this->set_parameter(rclcpp::Parameter("use_sim_time", true));
 	// Create image pub
-	publisher_ 		= this->create_publisher<sensor_msgs::msg::Image>("disparity_map", qos_profile); 
+	publisher_ 		= this->create_publisher<sensor_msgs::msg::Image>("disparity_map", qos_profile);
 
 	subscriber_left.subscribe(this, "left", my_qos);
         subscriber_right.subscribe(this, "right", my_qos);
@@ -248,11 +222,11 @@ void AcceleratedNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr&
 	auto now =  std::chrono::high_resolution_clock::now();
 	count +=1;
 	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(now - nodeStart).count();
-	double time = (duration) / count; 
+	double time = (duration) / count;
 	std::cout << "Average frame to frame time: " << time << " ms " << "\n";
 	// Get subscribed image
 	//-------------------------------------------------------------------------------------------------------
-	
+
 
 	// Converting ROS image messages to OpenCV images, for diggestion
 	// with the Vitis Vision Library
@@ -260,38 +234,30 @@ void AcceleratedNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr&
 
 	//std::cout << "INside imageCbSync function " << std::endl;
 
-	try 
+	try
 	{
 		cv_ptr_left 	= cv_bridge::toCvCopy(left_msg);
 		cv_ptr_right 	= cv_bridge::toCvCopy(right_msg);
-		
+
 		// cv::cvtColor(cv_ptr_left->image, cv_ptr_left->image, cv::COLOR_BGR2GRAY);
 		// cv::cvtColor(cv_ptr_right->image, cv_ptr_right->image, cv::COLOR_BGR2GRAY);
-		
 
 
-	} 
-	catch (cv_bridge::Exception & e) 
+
+	}
+	catch (cv_bridge::Exception & e)
 	{
 		RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
 		return;
 	}
 
 
-
-	// Process Image and run the accelerated Kernel
-	//-------------------------------------------------------------------------------------------------------
-
-	//this->get_parameter("profile", profile_);  // Update profile_
-
-	// std::cout << "JASSI DEBUG 2  " << std::endl;
 	ExecuteKernel();
 
 
  	sensor_msgs::msg::Image::SharedPtr msg_ = output_image.toImageMsg();
 
-	// Publish processed image
-	//-------------------------------------------------------------------------------------------------------
+
 	publisher_->publish(*msg_.get());
 
 }

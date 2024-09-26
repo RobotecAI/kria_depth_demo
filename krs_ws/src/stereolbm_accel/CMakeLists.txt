@@ -34,15 +34,19 @@ find_package(ament_vitis)
     src/accelerated_node.cpp
     src/main.cpp
   )
+  MESSAGE("env $ENV{XILINX_HLS}")
   target_include_directories(stereolbm_accel_tb PUBLIC 
 	   include
 	   $ENV{XILINX_HLS}/common/technology/autopilot
-    	   $ENV{XILINX_HLS}/include
+       $ENV{XILINX_HLS}/include
+     /home/michal/krs_ws/acceleration/firmware/kr260/sysroots/aarch64-xilinx-linux/usr/include/xrt/
 	   )
 
   target_link_libraries(stereolbm_accel_tb
     ${OpenCL_LIBRARY}
-    pthread
+          uuid
+          xrt_core xrt_coreutil
+
   )
   ament_target_dependencies(stereolbm_accel_tb
 	  rclcpp
