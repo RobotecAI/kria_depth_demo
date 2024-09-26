@@ -27,8 +27,8 @@ int main(int argc, char * argv[]) {
 
   rclcpp::NodeOptions node_options;
   auto node_accelerated				= std::make_shared<AcceleratedNode>(node_options);
-  auto node_minimal_publisher_left 		= std::make_shared<MinimalImagePublisher>("left");
-  auto node_minimal_publisher_right 		= std::make_shared<MinimalImagePublisher>("right");
+  //auto node_minimal_publisher_left 		= std::make_shared<MinimalImagePublisher>("left");
+  //auto node_minimal_publisher_right 		= std::make_shared<MinimalImagePublisher>("right");
 
 
   //executor.add_node(node_minimal_publisher_left);

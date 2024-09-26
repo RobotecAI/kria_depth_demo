@@ -56,7 +56,7 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 
 
 #define _TEXTURE_THRESHOLD_ 20
-#define _UNIQUENESS_RATIO_ 15
+#define _UNIQUENESS_RATIO_ 100
 #define _PRE_FILTER_CAP_ 31
 #define _MIN_DISP_ 0
 
@@ -108,9 +108,9 @@ void AcceleratedNode::ExecuteKernel()
 
 	size_t image_in_size_bytes = rows * cols * sizeof(unsigned char);
 	size_t vec_in_size_bytes = bm_state_params.size() * sizeof(unsigned char);
-	size_t image_out_size_bytes = rows * cols * sizeof(unsigned short int);
+	size_t image_out_size_bytes = rows * cols * sizeof(unsigned char);
 
-	result_hls.create(rows, cols, CV_16UC1);
+	// result_hls.create(rows, cols, CV_16UC1);
 	result_hls_8u.create(rows, cols, CV_8UC1);
 
 	// Allocate the buffers:
@@ -160,6 +160,9 @@ void AcceleratedNode::ExecuteKernel()
 	//std::cout << "JASSI DEBUG 5  " << std::endl;
 	// Execute the kernel:
 	OCL_CHECK(err, err = queue_->enqueueTask(*krnl_));
+	// Make it blocking by waiting for all commands to complete
+	OCL_CHECK(err, err = queue_->finish());
+
 	auto tsKernel2 = std::chrono::high_resolution_clock::now();
 
 	// std::cout << "JASSI DEBUG 6  " << std::endl;
@@ -168,8 +171,8 @@ void AcceleratedNode::ExecuteKernel()
 			CL_TRUE,         // blocking call
 			0,               // offset
 			image_out_size_bytes,
-			result_hls.data, // Data will be stored here
-			nullptr, &event);
+			result_hls_8u.data, // Data will be stored here
+			nullptr, nullptr);
 
 	auto tsBufferRead3 = std::chrono::high_resolution_clock::now();
 
@@ -186,8 +189,9 @@ void AcceleratedNode::ExecuteKernel()
 	queue_->finish();
 
 
-	// Convert 16U output to 8U output:
-	result_hls.convertTo(result_hls_8u, CV_8U, 1.f/16.f);
+
+	//result_hls.convertTo(result_hls_8u, CV_8U, (256.0 / NO_OF_DISPARITIES) / (16.));
+
 	output_image.header     = cv_ptr_left->header;
     output_image.encoding   = "mono8";
     output_image.image = cv::Mat{ rows,cols, CV_8U, result_hls_8u.data};
@@ -195,11 +199,10 @@ void AcceleratedNode::ExecuteKernel()
 }
 
 
-
 AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
 : rclcpp::Node("AcceleratedNode", options)
 {
-  	rclcpp::QoS  qos_profile = rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(); // rclcpp::SensorDataQoS();
+  	rclcpp::QoS  qos_profile = rclcpp::QoS(rclcpp::KeepLast(1)).reliable(); // rclcpp::SensorDataQoS();
 
 	const rmw_qos_profile_t my_qos =
 	{
