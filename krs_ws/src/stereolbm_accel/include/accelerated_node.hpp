@@ -19,6 +19,10 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/exact_time.h>
 
+#include <xrt/xrt_device.h>
+#include <xrt/xrt_kernel.h>
+#include <xrt/xrt_bo.h>
+
 class AcceleratedNode  : public rclcpp::Node
 {
 public:
@@ -34,10 +38,21 @@ protected:
   int 			height_;
   int 			width_;
 
-  cl::Kernel* 		krnl_;
-  cl::Context* 		context_;
-  cl::CommandQueue* 	queue_;
-  std::mutex 		connect_mutex_;
+  xrt::device device;
+  xrt::kernel stereo_accel;
+  xrt::bo left_bo;
+  xrt::bo right_bo;
+  xrt::bo params_bo;
+  xrt::bo out_img_bo;
+
+  constexpr  static int rows = 720;
+  constexpr  static int cols = 1280;
+  constexpr static size_t image_in_size_bytes = rows * cols * sizeof(unsigned char);
+  constexpr static size_t image_out_size_bytes = rows * cols * sizeof(unsigned char);
+  constexpr static size_t ParamCount = 4;
+  using ParameterVector = std::array<unsigned char,ParamCount>;
+  ParameterVector bm_state_params;
+  constexpr static size_t vec_in_size_bytes = ParamCount * sizeof(unsigned char);
   
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
 
