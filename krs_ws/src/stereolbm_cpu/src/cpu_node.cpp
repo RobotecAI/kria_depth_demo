@@ -44,6 +44,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 #include <chrono>
+#include <opencv2/highgui.hpp>
 using namespace message_filters;
 
 
@@ -76,16 +77,25 @@ CPUNode::CPUNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
 	height_ 		= this->declare_parameter("height", -1);
 	width_ 			= this->declare_parameter("width", -1);
 	profile_ 		= this->declare_parameter("profile", true);
+    baseline_       = this->declare_parameter("baseline", 0.025);
 
  	this->set_parameter(rclcpp::Parameter("use_sim_time", true));
 	// Create image pub
-	publisher_ 		= this->create_publisher<sensor_msgs::msg::Image>("disparity_map", qos_profile); 
+	publisher_ 		= this->create_publisher<sensor_msgs::msg::Image>("disparity_map", qos_profile);
+    publisherCameraInfo_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("disparity_map/camera_info", qos_profile);
 
 	subscriber_left.subscribe(this, "left", my_qos);
-        subscriber_right.subscribe(this, "right", my_qos);
+    subscriber_right.subscribe(this, "right", my_qos);
 
 	sync_.reset(new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(10), subscriber_left, subscriber_right));
 	sync_->registerCallback(std::bind(&CPUNode::imageCbSync, this, std::placeholders::_1, std::placeholders::_2));
+
+    sub_info_left = this->create_subscription<sensor_msgs::msg::CameraInfo>("left/camera_info", 10, [this](sensor_msgs::msg::CameraInfo msg){
+        RCLCPP_INFO(this->get_logger(), "Camera (left) Info received");
+        left_info = msg;
+        sub_info_left.reset();
+    });
+
 
 }
 
@@ -100,16 +110,6 @@ void CPUNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr& left_ms
 	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(now - nodeStart).count();
 	double time = (duration) / count; 
 	std::cout << "Average frame to frame time: " << time << " ms " << "\n";
-	// Get subscribed image
-	//-------------------------------------------------------------------------------------------------------
-	
-
-	// Converting ROS image messages to OpenCV images, for diggestion
-	// with the Vitis Vision Library
-	// see http://wiki.ros.org/cv_bridge/Tutorials/UsingCvBridgeToConvertBetweenROSImagesAndOpenCVImages
-
-	//std::cout << "INside imageCbSync function " << std::endl;
-
 	try 
 	{
 		cv_ptr_left 	= cv_bridge::toCvCopy(left_msg);
@@ -138,12 +138,37 @@ void CPUNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr& left_ms
         }
         cv::Mat filteredImage;
         cv::medianBlur(output_image, filteredImage, 5);
-        cv_bridge::CvImage cv_image;
-        cv_image.encoding = sensor_msgs::image_encodings::MONO16;
-        cv_image.image = filteredImage;
 
-	// Publish processed image
-	//-------------------------------------------------------------------------------------------------------
+        const double focal_length = left_info.k[4];
+        cv::Mat depthImage = cv::Mat::zeros(filteredImage.size(), CV_16UC1);
+
+        const double baseline_mm = baseline_ ;
+        for (int i = 0; i < filteredImage.rows; i++)
+        {
+            for (int j = 0; j < filteredImage.cols; j++)
+            {
+                auto disparity = filteredImage.at<uint16_t>(i, j);;
+                if (disparity ==0 || disparity > 32){
+
+                    depthImage.at<uint16_t>(i, j) = 0xFFFF;
+                }
+                else
+                {
+                    depthImage.at<uint16_t>(i, j) =  ((1000*focal_length * baseline_mm)/ disparity);
+                }
+            }
+        }
+
+        cv_bridge::CvImage cv_image;
+        cv_image.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+        cv_image.image = depthImage;
+
+        auto depthImageCameraInfo = left_info;
+        depthImageCameraInfo.header.stamp = left_msg->header.stamp;
+        publisherCameraInfo_->publish(left_info);
+
+
+    cv_image.header = left_msg->header;
 	publisher_->publish( *cv_image.toImageMsg());
 
 }

@@ -52,8 +52,12 @@ class DepthVisualizer(Node):
             depth_8u = np.uint8(depth_normalized)
             # Apply the colormap
             depth_colormap = cv2.applyColorMap(depth_8u, cv2.COLORMAP_BONE)
-            mask = depth_image < 1500
-            depth_colormap[mask] = [0, 0, 255]
+            maskDanger = depth_image < 2500
+            maskStop = depth_image < 1500
+
+            depth_colormap[maskDanger] = [0, 255, 255]
+            depth_colormap[maskStop] = [0, 0, 255]
+
             depth_colormap = cv2.resize(depth_colormap, (int(depth_colormap.shape[1] * 0.5), int(depth_colormap.shape[0] * 0.5)))
             
             # Calculate FPS
