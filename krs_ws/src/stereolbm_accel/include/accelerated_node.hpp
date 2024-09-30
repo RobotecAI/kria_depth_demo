@@ -56,12 +56,6 @@ protected:
   
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
 
-
- // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscriber_left;
- // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscriber_right;
- 
-//  std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscriber_left;
- // std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscriber_right;
  
   message_filters::Subscriber<sensor_msgs::msg::Image> subscriber_left;
   message_filters::Subscriber<sensor_msgs::msg::Image> subscriber_right;
@@ -80,7 +74,7 @@ protected:
 
   //typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy;
   typedef message_filters::sync_policies::ExactTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy;
-
+  
   std::shared_ptr<message_filters::Synchronizer<MySyncPolicy>> sync_;
 
 private:
@@ -90,6 +84,11 @@ private:
   cv::Mat  		result_hls;	// stores result after kernel execution on FPGA
   cv::Mat  		result_hls_8u;	// stores 8 bit result after kernel execution on FPGA
   cv_bridge::CvImage 	output_image; 	// Create CV image from result_hls, required to publish image msg.
+
+  float baseline_; //Baseline between left and right camera
+  sensor_msgs::msg::CameraInfo left_info; //Stores left camera info
+  
+  rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info_left;	//Subscriber for left camera info
   
   void InitKernel();
   void ExecuteKernel();

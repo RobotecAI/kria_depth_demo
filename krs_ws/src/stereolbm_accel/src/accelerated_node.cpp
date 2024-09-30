@@ -68,17 +68,30 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 
 void AcceleratedNode::InitKernel()
 {
-
-
+  std::cout << "Init kernel " << std::endl;
   device = xrt::device(0);
+  std::cout << "device name:     " << device.get_info<xrt::info::device::name>() << "\n";
+  std::cout << "device bdf:      " << device.get_info<xrt::info::device::bdf>() << "\n";
+
   auto uuid = device.load_xclbin("stereolbm_accel.xclbin");
+  std::cout << "Kernel uuid  " << uuid << std::endl;
+  
   stereo_accel = xrt::kernel(device, uuid.get(), "stereolbm_accel");
+  
 
   left_bo = xrt::bo (device, image_in_size_bytes, stereo_accel.group_id(0));
   right_bo = xrt::bo (device,image_in_size_bytes, stereo_accel.group_id(1));
   params_bo = xrt::bo (device,vec_in_size_bytes, stereo_accel.group_id(2));
   out_img_bo = xrt::bo (device,image_out_size_bytes, xrt::bo::flags::cacheable, stereo_accel.group_id(3));
+  std::cout << "Init kernel done " << std::endl;
 
+}
+
+
+double timeDiff(const timespec &t1, const timespec &t2) {
+    double secDiff = t2.tv_sec - t1.tv_sec;
+    double nsecDiff = t2.tv_nsec - t1.tv_nsec;
+    return (secDiff + nsecDiff / 1e9)*1e3;
 }
 
 void AcceleratedNode::ExecuteKernel()
@@ -86,7 +99,6 @@ void AcceleratedNode::ExecuteKernel()
 
   struct timespec begin_cpu, end_cpu, begin_hw, end_hw;
   struct timespec t_memin, t_krnl_exec;
-  long seconds, nanoseconds;
   double hw_time, memin_time, memout_time, krnl_exec_time;
 
   auto left_map = left_bo.map();
@@ -131,43 +143,45 @@ void AcceleratedNode::ExecuteKernel()
   hls_disp.create(rows, cols, CV_8UC1);
   //Copy the output buffer to cv:mat to compare and save the img
   std::memcpy(hls_disp.data, out_img_bo.map(), image_out_size_bytes);
-
+  clock_gettime(CLOCK_REALTIME, &end_hw);
+  
   //Total hw time
-  seconds = end_hw.tv_sec - begin_hw.tv_sec;
-  nanoseconds = end_hw.tv_nsec - begin_hw.tv_nsec;
-  hw_time = seconds + nanoseconds * 1e-9;
-  hw_time = hw_time * 1e3;
-
-
+  hw_time = timeDiff(begin_hw, end_hw);
   //mem in time
-  seconds = t_memin.tv_sec - begin_hw.tv_sec;
-  nanoseconds = t_memin.tv_nsec - begin_hw.tv_nsec;
-  memin_time = seconds + nanoseconds * 1e-9;
-  memin_time = memin_time * 1e3;
-
-
+  memin_time = timeDiff(begin_hw, t_memin);
   //kernel exec time
-
-  seconds = t_krnl_exec.tv_sec - t_memin.tv_sec;
-  nanoseconds = t_krnl_exec.tv_nsec - t_memin.tv_nsec;
-  krnl_exec_time = seconds + nanoseconds * 1e-9;
-  krnl_exec_time = krnl_exec_time * 1e3;
-
+  krnl_exec_time = timeDiff(t_memin, t_krnl_exec);
   // mem out time
-
-  seconds = end_hw.tv_sec - t_krnl_exec.tv_sec;
-  nanoseconds = end_hw.tv_nsec - t_krnl_exec.tv_nsec ;
-  memout_time = seconds + nanoseconds * 1e-9;
-  memout_time = memout_time * 1e3;
+  memout_time = timeDiff(t_krnl_exec, end_hw);
 
   std::cout.precision(3);
   std::cout << std::fixed;
   std::cout << "HLS time is " << hw_time << "ms" << std::endl;
-  std::cout << "Memory in time " << memin_time << "ms | Kernel Execution time is " << krnl_exec_time << "ms | Memory out time is: " << memout_time << "ms" <<  std::endl;
+  std::cout << "Memory in time " << memin_time << "ms | Kernel Execution time is " << krnl_exec_time << "ms | Memory out time is: " << memout_time << "ms\n";
 
+
+  const double focal_length = left_info.k[4];
+  cv::Mat depthImage = cv::Mat(hls_disp.size(), CV_16UC1);
+
+  // for (int i = 0; i < hls_disp.rows; i++)
+  //   {
+  //       for (int j = 0; j < hls_disp.cols; j++)
+  //       {
+  //           auto disparity = hls_disp.at<uint8_t>(i, j);;
+  //           if (disparity ==0 || disparity >=  NO_OF_DISPARITIES){
+
+  //               depthImage.at<uint16_t>(i, j) = 0xFFFF;
+  //           }
+  //           else
+  //           {
+  //               depthImage.at<uint16_t>(i, j) =  ((1000*focal_length * baseline_)/ disparity);
+  //           }
+  //       }
+  //   }
 
   output_image.header     = cv_ptr_left->header;
-  output_image.encoding   = "mono8";
+
+  output_image.encoding   = sensor_msgs::image_encodings::TYPE_8UC1;
   output_image.image = hls_disp;
 
 }
@@ -198,6 +212,7 @@ AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::N
 	height_ 		= this->declare_parameter("height", -1);
 	width_ 			= this->declare_parameter("width", -1);
 	profile_ 		= this->declare_parameter("profile", true);
+  baseline_   = this->declare_parameter("baseline", 0.0025);
 
  	this->set_parameter(rclcpp::Parameter("use_sim_time", true));
 	// Create image pub
@@ -209,6 +224,12 @@ AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::N
 	sync_.reset(new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(10), subscriber_left, subscriber_right));
 	sync_->registerCallback(std::bind(&AcceleratedNode::imageCbSync, this, std::placeholders::_1, std::placeholders::_2));
 
+
+  sub_info_left = this->create_subscription<sensor_msgs::msg::CameraInfo>("left/camera_info", 10, [this](sensor_msgs::msg::CameraInfo msg){
+      RCLCPP_INFO(this->get_logger(), "Camera (left) Info received");
+      left_info = msg;
+      sub_info_left.reset();
+  });
 
 	InitKernel();
 }
