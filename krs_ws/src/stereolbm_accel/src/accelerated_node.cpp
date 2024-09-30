@@ -114,6 +114,12 @@ void AcceleratedNode::ExecuteKernel()
   std::memcpy((unsigned char*)right_map, cv_ptr_right->image.data, image_in_size_bytes);
   std::memcpy((unsigned char*)param_map,bm_state_params.data(), vec_in_size_bytes );
 
+  
+  if (thread_.joinable())
+  {
+    thread_.join();
+  }
+
   //DMA from host to device
   clock_gettime(CLOCK_REALTIME, &begin_hw);
   left_bo.sync(XCL_BO_SYNC_BO_TO_DEVICE);
@@ -192,18 +198,34 @@ AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::N
 	height_ 		= this->declare_parameter("height", -1);
 	width_ 			= this->declare_parameter("width", -1);
 	profile_ 		= this->declare_parameter("profile", true);
+  baseline_ = this->declare_parameter("baseline", 0.025);
 
  	this->set_parameter(rclcpp::Parameter("use_sim_time", true));
 	// Create image pub
 	publisher_ 		= this->create_publisher<sensor_msgs::msg::Image>("disparity_map", qos_profile);
 
+  // stop publihser
+  publisher_distance_ = this->create_publisher<std_msgs::msg::Int32>("distance_error", qos_profile);
 	subscriber_left.subscribe(this, "left", my_qos);
         subscriber_right.subscribe(this, "right", my_qos);
 
 	sync_.reset(new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(10), subscriber_left, subscriber_right));
 	sync_->registerCallback(std::bind(&AcceleratedNode::imageCbSync, this, std::placeholders::_1, std::placeholders::_2));
 
-
+  sub_info_left = this->create_subscription<sensor_msgs::msg::CameraInfo>("left/camera_info", 10, [this](sensor_msgs::msg::CameraInfo msg){
+      RCLCPP_INFO(this->get_logger(), "Camera (left) Info received");
+      left_info_ = msg;
+      const auto &focal_length = left_info_.k[4];
+      const float depthToClose = 1.25;
+      const float depthWarn = 3.0;
+      disparity_warn_ = std::round( focal_length * baseline_ / depthWarn);
+      disparity_toClose_ = std::round( focal_length * baseline_ / depthToClose);
+      std::cout << "Disparities :" << std::endl;
+      std::cout << "\t Warn    : " << (int) disparity_warn_ << std::endl;
+      std::cout << "\t ToClose : " << (int) disparity_toClose_ << std::endl;
+      sub_info_left.reset();
+  });
+  
 	InitKernel();
 }
 
@@ -232,12 +254,51 @@ void AcceleratedNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr&
 
 	ExecuteKernel();
 
-  if (thread_.joinable())
-  {
-    thread_.join();
-  }
-  std::thread t1 ([result_hls_8u_copy = result_hls_8u,this](){
+
+  double focal_length = left_info_.k[4];
+  std::thread t1 ([focal_length, result_hls_8u_copy = result_hls_8u, this](){
     // parallel, CPU postprocessing image
+
+
+      int pointsToClose = 0;
+      int pointsWarn = 0;
+
+      for (int i = 0; i < result_hls_8u_copy.rows; i++)
+      {
+          for (int j = 0; j < result_hls_8u_copy.cols; j++)
+          {
+             const auto &disparity = result_hls_8u_copy.at<uint8_t>(i,j);
+             if (disparity  > disparity_toClose_ )
+             {
+                pointsToClose ++;
+                continue;
+             }
+             if (disparity > disparity_warn_)
+             {
+                pointsWarn ++;
+             }
+          }
+      }
+    std::cout << "pointsToClose " << pointsToClose << std::endl;
+    std::cout << "pointsToClose " << pointsWarn << std::endl;
+
+    const int onePercentPixel = rows*cols *0.01;
+
+    std_msgs::msg::Int32 status;
+    status.data = 0;
+
+    if (pointsWarn > onePercentPixel )
+    {
+        status.data = 1;
+    }
+
+    if (pointsToClose > onePercentPixel )
+    {
+        status.data = 2;
+    }
+
+    publisher_distance_->publish(status);
+
     cv_bridge::CvImage 	output_image;
     output_image.header     = cv_ptr_left->header;
     output_image.encoding   = "mono8";

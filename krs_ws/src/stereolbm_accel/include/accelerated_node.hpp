@@ -3,6 +3,7 @@
 #define IMAGE_PROC_RESIZE_FPGA_HPP_
 
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/int32.hpp>
 #include <image_transport/image_transport.hpp>
 #include <ament_index_cpp/get_resource.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -22,6 +23,7 @@
 #include <xrt/xrt_device.h>
 #include <xrt/xrt_kernel.h>
 #include <xrt/xrt_bo.h>
+
 
 class AcceleratedNode  : public rclcpp::Node
 {
@@ -56,18 +58,12 @@ protected:
   
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
 
-
- // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscriber_left;
- // rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscriber_right;
- 
-//  std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscriber_left;
- // std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscriber_right;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_distance_;
  
   message_filters::Subscriber<sensor_msgs::msg::Image> subscriber_left;
   message_filters::Subscriber<sensor_msgs::msg::Image> subscriber_right;
  
  
-
   void connectCb();
   size_t get_msg_size(sensor_msgs::msg::Image::ConstSharedPtr image_msg);
   size_t get_msg_size(sensor_msgs::msg::CameraInfo::ConstSharedPtr info_msg);
@@ -82,14 +78,20 @@ protected:
   typedef message_filters::sync_policies::ExactTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy;
 
   std::shared_ptr<message_filters::Synchronizer<MySyncPolicy>> sync_;
+  rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info_left; //Subscriber for left camera info
 
 private:
-
+  double baseline_;
+  sensor_msgs::msg::CameraInfo left_info_; //Stores left camera info
   cv_bridge::CvImagePtr cv_ptr_left;		//Stores input image from img_msg in  subscriber callback
   cv_bridge::CvImagePtr cv_ptr_right;		//Stores input image from img_msg in  subscriber callback
   cv::Mat  		result_hls_8u;	// stores 8 bit result after kernel execution on FPGA
 
-  std::thread thread_;
+  uint8_t disparity_warn_ {0};
+  uint8_t disparity_toClose_{0};
+
+    
+  std::thread thread_; // thread with CPU postprocessing
   void InitKernel();
   void ExecuteKernel();
 };
