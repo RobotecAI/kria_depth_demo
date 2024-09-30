@@ -87,10 +87,9 @@ private:
 
   cv_bridge::CvImagePtr cv_ptr_left;		//Stores input image from img_msg in  subscriber callback
   cv_bridge::CvImagePtr cv_ptr_right;		//Stores input image from img_msg in  subscriber callback
-  cv::Mat  		result_hls;	// stores result after kernel execution on FPGA
   cv::Mat  		result_hls_8u;	// stores 8 bit result after kernel execution on FPGA
-  cv_bridge::CvImage 	output_image; 	// Create CV image from result_hls, required to publish image msg.
-  
+
+  std::thread thread_;
   void InitKernel();
   void ExecuteKernel();
 };
