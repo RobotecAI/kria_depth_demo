@@ -79,6 +79,8 @@ void AcceleratedNode::InitKernel()
   params_bo = xrt::bo (device,vec_in_size_bytes, stereo_accel.group_id(2));
   out_img_bo = xrt::bo (device,image_out_size_bytes, xrt::bo::flags::cacheable, stereo_accel.group_id(3));
 
+  result_hls_8u.create(rows, cols, CV_8UC1);
+
 }
 
 void AcceleratedNode::ExecuteKernel()
@@ -100,8 +102,6 @@ void AcceleratedNode::ExecuteKernel()
   bm_state_params[3] = _MIN_DISP_;
 
 
-  result_hls_8u.create(rows, cols, CV_8UC1);
-
   assert(cv_ptr_left->image.rows == rows);
   assert(cv_ptr_left->image.cols == cols);
   assert(cv_ptr_right->image.rows == rows);
@@ -113,7 +113,6 @@ void AcceleratedNode::ExecuteKernel()
   std::memcpy((unsigned char*)left_map, cv_ptr_left->image.data, image_in_size_bytes);
   std::memcpy((unsigned char*)right_map, cv_ptr_right->image.data, image_in_size_bytes);
   std::memcpy((unsigned char*)param_map,bm_state_params.data(), vec_in_size_bytes );
-
 
   //DMA from host to device
   clock_gettime(CLOCK_REALTIME, &begin_hw);
@@ -127,11 +126,10 @@ void AcceleratedNode::ExecuteKernel()
   run.wait();
   clock_gettime(CLOCK_REALTIME, &t_krnl_exec);
 
-  cv::Mat hls_disp;
-  hls_disp.create(rows, cols, CV_8UC1);
   //Copy the output buffer to cv:mat to compare and save the img
-  std::memcpy(hls_disp.data, out_img_bo.map(), image_out_size_bytes);
-
+  //std::memcpy(result_hls_8u.data, out_img_bo.map(), image_out_size_bytes);
+  
+  clock_gettime(CLOCK_REALTIME, &end_hw);
   //Total hw time
   seconds = end_hw.tv_sec - begin_hw.tv_sec;
   nanoseconds = end_hw.tv_nsec - begin_hw.tv_nsec;
@@ -165,11 +163,7 @@ void AcceleratedNode::ExecuteKernel()
   std::cout << "HLS time is " << hw_time << "ms" << std::endl;
   std::cout << "Memory in time " << memin_time << "ms | Kernel Execution time is " << krnl_exec_time << "ms | Memory out time is: " << memout_time << "ms" <<  std::endl;
 
-
-  output_image.header     = cv_ptr_left->header;
-  output_image.encoding   = "mono8";
-  output_image.image = hls_disp;
-
+  result_hls_8u = cv::Mat(rows,cols, CV_8UC1, out_img_bo.map());
 }
 
 
@@ -224,26 +218,10 @@ void AcceleratedNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr&
 	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(now - nodeStart).count();
 	double time = (duration) / count;
 	std::cout << "Average frame to frame time: " << time << " ms " << "\n";
-	// Get subscribed image
-	//-------------------------------------------------------------------------------------------------------
-
-
-	// Converting ROS image messages to OpenCV images, for diggestion
-	// with the Vitis Vision Library
-	// see http://wiki.ros.org/cv_bridge/Tutorials/UsingCvBridgeToConvertBetweenROSImagesAndOpenCVImages
-
-	//std::cout << "INside imageCbSync function " << std::endl;
-
 	try
 	{
 		cv_ptr_left 	= cv_bridge::toCvCopy(left_msg);
 		cv_ptr_right 	= cv_bridge::toCvCopy(right_msg);
-
-		// cv::cvtColor(cv_ptr_left->image, cv_ptr_left->image, cv::COLOR_BGR2GRAY);
-		// cv::cvtColor(cv_ptr_right->image, cv_ptr_right->image, cv::COLOR_BGR2GRAY);
-
-
-
 	}
 	catch (cv_bridge::Exception & e)
 	{
@@ -254,11 +232,20 @@ void AcceleratedNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr&
 
 	ExecuteKernel();
 
-
- 	sensor_msgs::msg::Image::SharedPtr msg_ = output_image.toImageMsg();
-
-
-	publisher_->publish(*msg_.get());
+  if (thread_.joinable())
+  {
+    thread_.join();
+  }
+  std::thread t1 ([result_hls_8u_copy = result_hls_8u,this](){
+    // parallel, CPU postprocessing image
+    cv_bridge::CvImage 	output_image;
+    output_image.header     = cv_ptr_left->header;
+    output_image.encoding   = "mono8";
+    output_image.image = result_hls_8u_copy;
+    sensor_msgs::msg::Image::SharedPtr msg_ = output_image.toImageMsg();
+    publisher_->publish(*msg_.get());
+  });
+  std::swap(thread_ , t1);
 
 }
 
