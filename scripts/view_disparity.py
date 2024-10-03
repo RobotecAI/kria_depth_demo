@@ -27,6 +27,9 @@ class DepthVisualizer(Node):
             qos_profile
         )
 
+        # Load the watermark with alpha channel (RGBA)
+        self.watermark = cv2.imread('logo.png', cv2.IMREAD_UNCHANGED)
+
         # Variables for FPS calculation
         self.prev_time = time.time()
         self.fps = []
@@ -41,19 +44,25 @@ class DepthVisualizer(Node):
             median = np.median(depth_image)
             print(f'Max: {max}, Min: {min} Med : {median}')
             # Normalize the depth image to 0-255
-
-            depth_unit =  depth_image/32
-
-            depth_normalized = (depth_unit * 255).astype(np.uint8)
+            depth_normalized =(depth_image/32)*255
 
             # Convert to 8-bit image for colormap
             depth_8u = np.uint8(depth_normalized)
             depth_8u = 255-depth_8u
+            
             # Apply the colormap
             depth_colormap = cv2.applyColorMap(depth_8u, cv2.COLORMAP_BONE)
-            mask = depth_image > 15
-            depth_colormap[mask] = [0, 0, 255]
+            
+            maskYellow = depth_image > 7
+            depth_colormap[maskYellow] = [0,255,255]
+            
+            maskRed = depth_image > 17
+            depth_colormap[maskRed] = [0, 0, 255]
+
+            self.add_watermark(depth_colormap)
+
             depth_colormap = cv2.resize(depth_colormap, (int(depth_colormap.shape[1] * 0.5), int(depth_colormap.shape[0] * 0.5)))
+            
             
             # Calculate FPS
             current_time = time.time()
@@ -70,8 +79,10 @@ class DepthVisualizer(Node):
             cv2.putText(depth_colormap, f'FPS: {fps_mean:.2f}', (10, 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
 
-            
-                
+
+          
+            # Overlay the watermark
+         
             # Display the resulting image
             cv2.imshow('Depth Colormap', depth_colormap)
             
@@ -80,6 +91,21 @@ class DepthVisualizer(Node):
         except Exception as e:
             self.get_logger().error(f'Error processing depth image: {str(e)}')
 
+    def add_watermark(self, depth_colormap):
+        if self.watermark is not None:
+            """Adds the watermark to the entire depth_colormap image."""
+            # Assuming the watermark is the same size as the image
+            # Split the watermark into its color and alpha channels
+            watermark_rgb = self.watermark[:, :, :3]  # Color part
+            alpha_channel = self.watermark[:, :, 3] / 255.0  # Normalize alpha to [0, 1]
+
+            # Expand the alpha channel to match the shape of the RGB image
+            alpha_channel = np.dstack([alpha_channel] * 3)
+
+            # Blend the watermark using NumPy's vectorized operations
+            depth_colormap[:] = (depth_colormap * (1 - alpha_channel) +
+                                watermark_rgb * alpha_channel).astype(np.uint8)
+        
 def main(args=None):
     rclpy.init(args=args)
     node = DepthVisualizer()
