@@ -81,7 +81,14 @@ protected:
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info_left; //Subscriber for left camera info
 
 private:
-  double baseline_;
+  double baseline_; //Baseline distance between the two cameras
+  int       roi_start_x_; //Region of interest start x
+  int       roi_start_y_; //Region of interest start y
+  int       roi_end_x_;   //Region of interest end x
+  int       roi_end_y_;   //Region of interest end y
+  double    depth_to_close_; //Depth to close
+  double    depth_warn_; //Depth to warn
+
   sensor_msgs::msg::CameraInfo left_info_; //Stores left camera info
   cv_bridge::CvImagePtr cv_ptr_left;		//Stores input image from img_msg in  subscriber callback
   cv_bridge::CvImagePtr cv_ptr_right;		//Stores input image from img_msg in  subscriber callback
