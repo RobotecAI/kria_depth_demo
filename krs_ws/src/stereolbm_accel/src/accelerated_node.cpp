@@ -69,9 +69,10 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 void AcceleratedNode::InitKernel()
 {
 
-
   device = xrt::device(0);
+  std::cout << "Found Device" << device.get_info<xrt::info::device::name>() << std::endl;
   auto uuid = device.load_xclbin("stereolbm_accel.xclbin");
+  std::cout << "Loaded xclbin with uuid" << uuid << std::endl;
   stereo_accel = xrt::kernel(device, uuid.get(), "stereolbm_accel");
 
   left_bo = xrt::bo (device, image_in_size_bytes, stereo_accel.group_id(0));
@@ -199,7 +200,16 @@ AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::N
 	width_ 			= this->declare_parameter("width", -1);
 	profile_ 		= this->declare_parameter("profile", true);
   baseline_ = this->declare_parameter("baseline", 0.025);
+  depth_to_close_ = this->declare_parameter("depthToClose", 1.25);
+  depth_warn_ = this->declare_parameter("depthWarn", 3.0);
+  roi_start_x_ = this->declare_parameter("roi_start_x", 100);
+  roi_end_x_ = this->declare_parameter("roi_end_x", 1280-100);
 
+  roi_start_y_ = this->declare_parameter("roi_start_y", 0);
+  roi_end_y_ = this->declare_parameter("roi_end_y", 720-50);
+  assert(roi_start_x_ < roi_end_x_);
+  assert(roi_start_y_ < roi_end_y_);
+  
  	this->set_parameter(rclcpp::Parameter("use_sim_time", true));
 	// Create image pub
 	publisher_ 		= this->create_publisher<sensor_msgs::msg::Image>("disparity_map", qos_profile);
@@ -215,11 +225,11 @@ AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::N
   sub_info_left = this->create_subscription<sensor_msgs::msg::CameraInfo>("left/camera_info", 10, [this](sensor_msgs::msg::CameraInfo msg){
       RCLCPP_INFO(this->get_logger(), "Camera (left) Info received");
       left_info_ = msg;
+
+      // compute disparities for warning and to close depths
       const auto &focal_length = left_info_.k[4];
-      const float depthToClose = 1.25;
-      const float depthWarn = 3.0;
-      disparity_warn_ = std::round( focal_length * baseline_ / depthWarn);
-      disparity_toClose_ = std::round( focal_length * baseline_ / depthToClose);
+      disparity_warn_ = std::round( focal_length * baseline_ / depth_warn_ );
+      disparity_toClose_ = std::round( focal_length * baseline_ / depth_to_close_);
       std::cout << "Disparities :" << std::endl;
       std::cout << "\t Warn    : " << (int) disparity_warn_ << std::endl;
       std::cout << "\t ToClose : " << (int) disparity_toClose_ << std::endl;
@@ -254,20 +264,18 @@ void AcceleratedNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr&
 
 	ExecuteKernel();
 
-
   double focal_length = left_info_.k[4];
   std::thread t1 ([focal_length, result_hls_8u_copy = result_hls_8u, this](){
     // parallel, CPU postprocessing image
-
-
+      
       int pointsToClose = 0;
       int pointsWarn = 0;
 
-      for (int i = 0; i < result_hls_8u_copy.rows; i++)
+      for (int i = roi_start_y_; i < roi_end_y_ && i < result_hls_8u_copy.rows; i++)
       {
-          for (int j = 0; j < result_hls_8u_copy.cols; j++)
+          for (int j = roi_start_x_;  j < roi_end_x_ && j < result_hls_8u_copy.cols;  j++)
           {
-             const auto &disparity = result_hls_8u_copy.at<uint8_t>(i,j);
+             auto &disparity = result_hls_8u_copy.at<uint8_t>(i,j);
              if (disparity  > disparity_toClose_ )
              {
                 pointsToClose ++;
