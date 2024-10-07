@@ -66,6 +66,13 @@ char* read_binary_file(const std::string &xclbin_file_name, unsigned &nb);
 #define XCLBIN_NAME "/lib/firmware/xilinx/stereolbm_accel/stereolbm_accel.xclbin"
 #define KERNEL_NAME "stereolbm_accel"
 
+double GetExecutionTime(const struct timespec& start, const struct timespec& end)
+{
+  const double seconds = end.tv_sec - start.tv_sec;
+  const double nanoseconds = end.tv_nsec - start.tv_nsec;
+  return (seconds + nanoseconds * 1e-9) * 1e3;
+}
+
 void AcceleratedNode::InitKernel()
 {
 
@@ -84,13 +91,13 @@ void AcceleratedNode::InitKernel()
 
 }
 
+
+
 void AcceleratedNode::ExecuteKernel()
 {
 
   struct timespec begin_cpu, end_cpu, begin_hw, end_hw;
   struct timespec t_memin, t_krnl_exec;
-  long seconds, nanoseconds;
-  double hw_time, memin_time, memout_time, krnl_exec_time;
 
   auto left_map = left_bo.map();
   auto right_map = right_bo.map();
@@ -111,11 +118,12 @@ void AcceleratedNode::ExecuteKernel()
 
   //Load left image in bo_map
 
+  clock_gettime(CLOCK_REALTIME, &begin_cpu);
   std::memcpy((unsigned char*)left_map, cv_ptr_left->image.data, image_in_size_bytes);
   std::memcpy((unsigned char*)right_map, cv_ptr_right->image.data, image_in_size_bytes);
   std::memcpy((unsigned char*)param_map,bm_state_params.data(), vec_in_size_bytes );
+  clock_gettime(CLOCK_REALTIME, &end_cpu);
 
-  
   if (thread_.joinable())
   {
     thread_.join();
@@ -138,37 +146,17 @@ void AcceleratedNode::ExecuteKernel()
   
   clock_gettime(CLOCK_REALTIME, &end_hw);
   //Total hw time
-  seconds = end_hw.tv_sec - begin_hw.tv_sec;
-  nanoseconds = end_hw.tv_nsec - begin_hw.tv_nsec;
-  hw_time = seconds + nanoseconds * 1e-9;
-  hw_time = hw_time * 1e3;
-
-
-  //mem in time
-  seconds = t_memin.tv_sec - begin_hw.tv_sec;
-  nanoseconds = t_memin.tv_nsec - begin_hw.tv_nsec;
-  memin_time = seconds + nanoseconds * 1e-9;
-  memin_time = memin_time * 1e3;
-
-
-  //kernel exec time
-
-  seconds = t_krnl_exec.tv_sec - t_memin.tv_sec;
-  nanoseconds = t_krnl_exec.tv_nsec - t_memin.tv_nsec;
-  krnl_exec_time = seconds + nanoseconds * 1e-9;
-  krnl_exec_time = krnl_exec_time * 1e3;
-
-  // mem out time
-
-  seconds = end_hw.tv_sec - t_krnl_exec.tv_sec;
-  nanoseconds = end_hw.tv_nsec - t_krnl_exec.tv_nsec ;
-  memout_time = seconds + nanoseconds * 1e-9;
-  memout_time = memout_time * 1e3;
+  const double cpu_time = GetExecutionTime(begin_cpu, end_cpu);
+  const double hw_time = GetExecutionTime(begin_hw, end_hw);
+  const double memin_time = GetExecutionTime(begin_hw, t_memin);
+  const double krnl_exec_time = GetExecutionTime(t_memin, t_krnl_exec);
+  const double memout_time = GetExecutionTime(t_krnl_exec, end_hw);
 
   std::cout.precision(3);
   std::cout << std::fixed;
-  std::cout << "HLS time is " << hw_time << "ms" << std::endl;
-  std::cout << "Memory in time " << memin_time << "ms | Kernel Execution time is " << krnl_exec_time << "ms | Memory out time is: " << memout_time << "ms" <<  std::endl;
+  std::cout << "HLS time is " << hw_time  << "ms" << "\n";
+  std::cout << "CPU time (data prep) is " << cpu_time  << "ms" << "\n";
+  std::cout << "Memory in time " << memin_time << "ms | Kernel Execution time is " << krnl_exec_time << "ms | Memory out time is: " << memout_time << "ms" << "\n";
 
   result_hls_8u = cv::Mat(rows,cols, CV_8UC1, out_img_bo.map());
 }
@@ -214,6 +202,9 @@ AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::N
 	// Create image pub
 	publisher_ 		= this->create_publisher<sensor_msgs::msg::Image>("disparity_map", qos_profile);
 
+  roi_publisher_ = this->create_publisher<sensor_msgs::msg::Image>("roi_image", qos_profile);
+
+
   // stop publihser
   publisher_distance_ = this->create_publisher<std_msgs::msg::Int32>("distance_error", qos_profile);
 	subscriber_left.subscribe(this, "left", my_qos);
@@ -235,7 +226,18 @@ AcceleratedNode::AcceleratedNode(const rclcpp::NodeOptions & options = rclcpp::N
       std::cout << "\t ToClose : " << (int) disparity_toClose_ << std::endl;
       sub_info_left.reset();
   });
-  
+
+  cv::Mat roi_image = cv::Mat::zeros(rows, cols, CV_8UC1);
+  for (int i = roi_start_y_; i < roi_end_y_; i++)
+  {
+      for (int j = roi_start_x_;  j < roi_end_x_ ;  j++)
+      {
+          roi_image.at<uint8_t>(i,j) = 255;
+      }
+  }
+  // save the roi image for debug purposes
+  cv::imwrite("roi_image.png", roi_image);
+
 	InitKernel();
 }
 
@@ -267,28 +269,36 @@ void AcceleratedNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr&
   double focal_length = left_info_.k[4];
   std::thread t1 ([focal_length, result_hls_8u_copy = result_hls_8u, this](){
     // parallel, CPU postprocessing image
-      
-      int pointsToClose = 0;
-      int pointsWarn = 0;
+    
+    #define POSTPROCESS
+    #ifdef POSTPROCESS
+    struct timespec begin, end;
+    clock_gettime(CLOCK_REALTIME, &begin);
+    int pointsToClose = 0;
+    int pointsWarn = 0;
 
-      for (int i = roi_start_y_; i < roi_end_y_ && i < result_hls_8u_copy.rows; i++)
-      {
-          for (int j = roi_start_x_;  j < roi_end_x_ && j < result_hls_8u_copy.cols;  j++)
-          {
-             auto &disparity = result_hls_8u_copy.at<uint8_t>(i,j);
-             if (disparity  > disparity_toClose_ )
-             {
-                pointsToClose ++;
-                continue;
-             }
-             if (disparity > disparity_warn_)
-             {
-                pointsWarn ++;
-             }
-          }
-      }
-    std::cout << "pointsToClose " << pointsToClose << std::endl;
-    std::cout << "pointsToClose " << pointsWarn << std::endl;
+
+    for (int i = roi_start_y_; i < roi_end_y_; i++)
+    {
+        for (int j = roi_start_x_;  j < roi_end_x_ ;  j++)
+        {
+            auto &disparity = result_hls_8u_copy.at<uint8_t>(i,j);
+            if (disparity  > disparity_toClose_ )
+            {
+              pointsToClose ++;
+              continue;
+            }
+            if (disparity > disparity_warn_)
+            {
+              pointsWarn ++;
+            }
+        }
+    }
+    clock_gettime(CLOCK_REALTIME, &end);
+    const double postprocess_time = GetExecutionTime(begin, end);
+    std::cout << "Postprocess time is " << postprocess_time << "ms \n";
+    std::cout << "pointsToClose " << pointsToClose << "\n";
+    std::cout << "pointsToClose " << pointsWarn << "\n";
 
     const int onePercentPixel = rows*cols *0.01;
 
@@ -306,7 +316,7 @@ void AcceleratedNode::imageCbSync(const sensor_msgs::msg::Image::ConstSharedPtr&
     }
 
     publisher_distance_->publish(status);
-
+    #endif
     cv_bridge::CvImage 	output_image;
     output_image.header     = cv_ptr_left->header;
     output_image.encoding   = "mono8";

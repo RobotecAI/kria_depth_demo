@@ -57,6 +57,8 @@ protected:
   constexpr static size_t vec_in_size_bytes = ParamCount * sizeof(unsigned char);
   
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr roi_publisher_;
+  
 
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_distance_;
  
@@ -79,7 +81,7 @@ protected:
 
   std::shared_ptr<message_filters::Synchronizer<MySyncPolicy>> sync_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info_left; //Subscriber for left camera info
-
+  
 private:
   double baseline_; //Baseline distance between the two cameras
   int       roi_start_x_; //Region of interest start x
