@@ -42,9 +42,6 @@ void stereolbm_accel(ap_uint<PTR_IN_WIDTH>* img_in_l,
     xf::cv::Mat<OUT_TYPE, HEIGHT, WIDTH, NPC> imgOutputStereo8(rows, cols);
     xf::cv::Mat<OUT_TYPE, HEIGHT, WIDTH, NPC> imgOutputMedian(rows, cols);
 
-    
-    uint32_t histogram[256];
-
     xf::cv::xFSBMState<SAD_WINDOW_SIZE, NO_OF_DISPARITIES, PARALLEL_UNITS> bmState;
 
     // Initialize SBM State:

@@ -37,26 +37,36 @@ class DepthVisualizer(Node):
     def depth_callback(self, msg):
         try:
             # Convert ROS Image message to OpenCV image
-            depth_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+            disparity = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
 
-            max = np.max(depth_image)
-            min = np.min(depth_image)
-            median = np.median(depth_image)
+            max = np.max(disparity)
+            min = np.min(disparity)
+            median = np.median(disparity)
             print(f'Max: {max}, Min: {min} Med : {median}')
-            # Normalize the depth image to 0-255
-            depth_normalized =(depth_image/32)*255
+          
+            base_line = 0.025
+            focal = 869.1168823242188
+            max_depth = 30
+            min_depth = 0.5
+            
+            depth_metric = base_line * focal / disparity
+      
+      
+            depth_scaled = np.clip((depth_metric - min_depth) / (max_depth-min_depth), 0.0, 1.0)
 
             # Convert to 8-bit image for colormap
-            depth_8u = np.uint8(depth_normalized)
-            depth_8u = 255-depth_8u
+            depth_8u = 255-np.uint8(depth_scaled * 255)
+            #depth_8u = np.uint8(cv2.normalize(disparity, None, 0, 255, cv2.NORM_MINMAX)).astype(np.uint8)
+            
+            
             
             # Apply the colormap
             depth_colormap = cv2.applyColorMap(depth_8u, cv2.COLORMAP_BONE)
             
-            maskYellow = depth_image > 7
+            maskYellow = disparity > 7
             depth_colormap[maskYellow] = [0,255,255]
             
-            maskRed = depth_image > 17
+            maskRed = disparity > 17
             depth_colormap[maskRed] = [0, 0, 255]
 
             self.add_watermark(depth_colormap)
@@ -70,7 +80,7 @@ class DepthVisualizer(Node):
             if elapsed_time > 0:
                 fps = 1.0 / elapsed_time
                 self.fps.append(fps)
-                if len(self.fps) > 50:
+                if len(self.fps) > 100:
                     self.fps.pop(0)
             self.prev_time = current_time
 
