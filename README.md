@@ -1,8 +1,8 @@
 # Kria depth demo
 
-This demo presents a usecase for FPGA SOC Kria K260.
-FPGA (Field programmable gateway array) is technology that allows to create custom hardware to fullfil complex task in parallel and deterministic manner.
-In contrast to programming processor, designing FPGA solution, one is not limited to architecture constrains of given platform.
+This demo presents a use case for FPGA SOC Kria K260.
+FPGA (Field programmable gateway array) is a technology that allows to creation of custom hardware to fulfill complex tasks in a parallel and deterministic manner.
+In contrast to programming processors, designing an FPGA solution does not limit one to the architecture constraints of a given platform.
 
 In this simple project number of technologies are utilized:
 - [Kria 260](https://xilinx.github.io/kria-apps-docs/home/build/html/index.html) \
@@ -10,40 +10,69 @@ It is a system-on-chip solution that can be integrated in robotics design.
 - [Vitis](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis.html)
 It is a platform to develop solutions deployed in FPGA.
 - [Kria Robotics stack](https://xilinx.github.io/KRS/sphinx/build/html/index.html)
-It is a ROS 2 set of tools, nodes and libraries to depoloy harware-accelerated solutions to Kria SOMs.
+It is a ROS 2 set of tools, nodes, and libraries to deploy hardware-accelerated solutions to Kria SOMs.
 
 
 ## Nomenclature
 
-- [KR260](https://www.amd.com/en/products/system-on-modules/kria/k26/kr260-robotics-starter-kit.html) - AMD board with SOM platform
-- x68 - Host machine, PC, or laptop
+- KRIA (https://www.amd.com/en/products/system-on-modules/kria/k26/kr260-robotics-starter-kit.html) - AMD Kria KR260 board with SOM platform
+- X86 - Host machine, PC, or laptop
 
 ## Prerequisites
-- x68 machine with Ubuntu 22.04 and plenty of free space (~300 Gb)
+- X86 machine with Ubuntu 22.04 and plenty of free space (~300 Gb)
 
-- Kria KR260 board with Ubuntu 22.04 \
+- KRIA KR260 board with Ubuntu 22.04 \
   Refer to [Getting Started](https://www.amd.com/en/products/system-on-modules/kria/k26/kr260-robotics-starter-kit/getting-started/setting-up-the-sd-card-image.html)
 
 - ROS 2 Humble installed on KR260 and x86. Refer to [Installation](https://docs.ros.org/en/humble/Installation.html)
 
-## Install Vitis
+## Install Vitis (Vivado) on X86
 
-Vitis 2022.1 needs to be installed on x86. Please download Vitis 2022.1 from [Download](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/archive.html).  I recommend to use [Xilinx_Unified_2022.1](https://www.xilinx.com/member/forms/download/xef.html?filename=Xilinx_Unified_2022.1_0420_0327.tar.gz). File is quite huge, so do not forget to check MD5 checksum before installation. 
+Vivado 2022.1 needs to be installed on X86. Please download Vivado 2022.1 from [Download](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/archive.html).  I recommend to use [Xilinx_Unified_2022.1](https://www.xilinx.com/member/forms/download/xef.html?filename=Xilinx_Unified_2022.1_0420_0327.tar.gz). File is quite huge, so do not forget to check MD5 checksum before installation. 
 Install Vitis at default location `/tools/Xilinx`. I've experienced some freezing and needed to install those packages (according to recommendation found at [Support](https://support.xilinx.com/s/question/0D54U00005astbhSAA/vivado-gets-stuck-or-takes-more-than-1-to-15-days-in-final-processing-ie-generating-installed-device-list-when-trying-to-install-in-ubuntu-2204?language=en_US)):
 ```bash 
 sudo apt-get install libtinfo5 libncurses5
 ```
 
+## Install ROS2 Humble on KRIA
+
+Setup Locale:
+   ```bash
+   sudo apt update && sudo apt install locales
+   sudo locale-gen en_US en_US.UTF-8
+   sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+   export LANG=en_US.UTF-8
+   ```
+Add Sources & Repo Key:
+   ```bash
+   sudo apt update && sudo apt install software-properties-common
+   sudo add-apt-repository universe
+   sudo apt update && sudo apt install curl
+   curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | sudo apt-key add -
+   ```
+Add ROS 2 Repository:
+   ```bash
+   sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list'
+   ```
+
+Install ROS 2 Humble (full-desktop, 1.7 GB download):**
+   ```bash
+   sudo apt update
+   sudo apt install ros-humble-desktop
+   ```
+
+Install additional tools and `rmw-cyclonedds-cpp` for ROS:
+   ```bash
+   sudo apt install python3-colcon-common-extensions python3-argcomplete ros-humble-rmw-cyclonedds-cpp
+   ```
 
 ## Build workspace on KRIA
-
-Note : It is not tested yet
 
 ```bash
 sudo apt-get -y install curl build-essential libssl-dev git wget \
                           ocl-icd-* opencl-headers python3-vcstool \
                           python3-colcon-common-extensions python3-colcon-mixin \
-                          kpartx u-boot-tools pv gcc-multilib
+                          kpartx u-boot-tools pv
 ```
 
 ```bash
@@ -126,19 +155,18 @@ colcon build --merge-install --packages-select acceleration_firmware_kr260 vitis
 
 Add to bash.rc
 ```
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 source /opt/ros/humble/setup.bash
 source /home/mpelka/krs_ws/install/setup.bash
 ```
 
-## Build workspace on x86
+## Build workspace on X86
 
-Enter the 'krs_ws' workspace. For convience setup environment variable:
+Enter the 'krs_ws' workspace. Setup environment variable by adding the following line to your `~.bashrc`:
 ```bash 
 export KRS_WS=/home/$USER/kria_depth_demo/krs_ws/
 ```
 
-Install prerequisits (according to [Install KRS](https://xilinx.github.io/KRS/sphinx/build/html/docs/install.html))
+Install prerequisites (according to [Install KRS](https://xilinx.github.io/KRS/sphinx/build/html/docs/install.html))
 ```bash 
 sudo apt-get install ros-humble-rmw-cyclonedds-cpp ros-humble-cyclonedds* 
 sudo apt-get -y install curl build-essential libssl-dev git wget \
@@ -165,7 +193,7 @@ vcs import src --recursive < krs_humble.repos
 ```
 
 Source Vitis and ROS 2 and build tools for x86.
-Note that the building needs super user access. 
+Note that the building needs superuser access. 
 ```bash 
 cd $KRS_WS
 unset RMW_IMPLEMENTATION
@@ -184,6 +212,7 @@ sudo ln -s $KRS_WS/install/../acceleration/firmware/kr260/sysroots/aarch64-xilin
 ```
 ## Build accelerated node
 
+With `colcon` select the build target (kr260):
 ```bash 
 cd $KRS_WS
 unset RMW_IMPLEMENTATION
@@ -193,19 +222,7 @@ source ./install/setup.bash  # Source KRS
 export PATH="/usr/bin":$PATH
 colcon acceleration select kr260
 ```
-
-```bash 
-cd $KRS_WS
-unset RMW_IMPLEMENTATION
-source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
-source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
-source ./install/setup.bash  # Source KRS
-export PATH="/usr/bin":$PATH
-
-colcon build --executor sequential --event-handlers console_direct+ --build-base=build-kr260-ubuntu --install-base=install-kr260-ubuntu --merge-install --mixin kr260 --cmake-args -DNOKERNELS=false
-
-```
-To build only depth node:
+Build only the depth node (takes about half an hour on Ryzen 7 9700x):
 ```bash 
 cd $KRS_WS
 unset RMW_IMPLEMENTATION
@@ -217,10 +234,24 @@ rm -r build-kr260-ubuntu/stereolbm_accel/
 colcon build --executor sequential --event-handlers console_direct+ --build-base=build-kr260-ubuntu --install-base=install-kr260-ubuntu --merge-install --mixin kr260 --cmake-args -DNOKERNELS=false --packages-select stereolbm_accel
 ```
 
-Next, you need to copy to board (assuming that kria is configured as host in your `.ssh/config`, and user name is 'ubuntu'):
+Below is for building all of the accelerated nodes examples along with the depth node, this takes more than 2 hours on Ryzen 7 9700x (not needed for this demo):
+```bash 
+cd $KRS_WS
+unset RMW_IMPLEMENTATION
+source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
+source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
+source ./install/setup.bash  # Source KRS
+export PATH="/usr/bin":$PATH
+
+colcon build --executor sequential --event-handlers console_direct+ --build-base=build-kr260-ubuntu --install-base=install-kr260-ubuntu --merge-install --mixin kr260 --cmake-args -DNOKERNELS=false
+
+```
+
+Next, you need to copy to the board (assuming that Kria is configured as host in your `.ssh/config`, and the user name is 'ubuntu'):
+
 ```bash
 cd $KRS_WS
-scp -r install-kr260-ubuntu/lib/stereolbm_accel  kria:/home/ubuntu/
+scp -r install-kr260-ubuntu/lib/stereolbm_accel  ubuntu@kria:/home/ubuntu/
 ```
 
 Next on the board (after `ssh kria`):
@@ -232,7 +263,7 @@ sudo xmutil loadapp stereolbm_accel #Loads requested application configuration b
 ```
 
 
-Rest can be done as user
+Rest can be done as the user
 ```
 source /home/$USER/krs_ws/install/setup.bash
 cd /home/$USER/stereolbm_accel
@@ -242,11 +273,11 @@ cd /home/$USER/stereolbm_accel
 ## DDS tunning
 We have a peer-to-peer connection with `cyclone-dds`.
 
-Please create a file with the dds configuration on both the x86 and Kria board.
-This configuration assumes that peers addresses are:
+Please create a file with the DDS configuration on the x86 and Kria board.
+This configuration assumes that peer addresses are:
  - 192.168.99.1 
  - 192.168.99.2
-Do not forget to adjust inteface name:
+Do not forget to adjust the interface name:
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config
@@ -290,8 +321,6 @@ export ROS_DOMAIN_ID=34
 ```
 
 Finally set the network stack on both x86 and Kria:
-
-
 ```
 sudo vim /etc/sysctl.d/10-cyclone-max.conf
 ```
@@ -304,9 +333,35 @@ net.core.rmem_max=2147483647
 
 Reboot both x86 and Kria.
 
-### Simulator 
-Grab project from [ROSCon2023Demo/test_stereo](https://github.com/RobotecAI/ROSCon2023Demo/tree/mp/test_stereo).
-Make sure to use `test_stereo` and build following instructions.
+### Download simulator
+
+The simulator is available under this repository [ROSCon2023Demo](https://github.com/RobotecAI/ROSCon2023Demo).
+
+The prebuilt package is available here:
+[Download  for ROS 2 humble](https://robotecai-my.sharepoint.com/:u:/g/personal/michal_pelka_robotec_ai/EYMO9TR5EI9CrU8M2l2lPTwBWJ9xf4QGXQCONQ0THzncDQ?e=J8E3uX)
+
+Install prerequisites
+```bash
+sudo apt install ros-${ROS_DISTRO}-ackermann-msgs ros-${ROS_DISTRO}-control-toolbox ros-${ROS_DISTRO}-nav-msgs ros-${ROS_DISTRO}-gazebo-msgs ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-ur-msgs ros-${ROS_DISTRO}-moveit-servo ros-${ROS_DISTRO}-moveit-visual-tools ros-${ROS_DISTRO}-moveit ros-${ROS_DISTRO}-pilz-industrial-motion-planner ros-${ROS_DISTRO}-controller-manager ros-${ROS_DISTRO}-ur-client-library ros-${ROS_DISTRO}-nav2-common ros-${ROS_DISTRO}-navigation2 python3-rosdep2 
+```
+
+Initialize rosdep
+```bash
+rosdep update
+```
+
+Create SIM_PACKAGE environment variable (adjust accordingly to the chosen directory)
+```bash
+export SIM_PACKAGE=~/rosconpkg
+```
+
+After downloading the package and unzipping it under ${SIM_PACKAGE} on x86 you need to build Simulator's package:
+```bash
+cd ${SIM_PACKAGE}/ros2_ws
+rosdep install --ignore-src --from-paths src/Universal_Robots_ROS2_Driver -y
+colcon build --symlink-install
+```
+
 
 ### Running system
 
@@ -319,5 +374,6 @@ cd /home/${USER}/stereolbm_accel
 
 On x86:
 ```
-RosCon2023.GameLaucher -r_fullscreen=false -bg_ConnectToAssetProcessor=0 -r_width=2560 -r_height=1440 -r_resolutionMode=1
+source ${SIM_PACKAGE}/ros2_ws/install/setup.bash
+${SIM_PACKAGE}/ROSCon2023DemoGamePackage/ROSCon2023Demo.GameLauncher -r_fullscreen=false -bg_ConnectToAssetProcessor=0 -r_width=2560 -r_height=1440 -r_resolutionMode=1
 ```
