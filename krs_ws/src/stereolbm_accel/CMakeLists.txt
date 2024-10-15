@@ -40,9 +40,9 @@ find_package(ament_vitis)
   MESSAGE("env $ENV{XILINX_HLS}")
   target_include_directories(stereolbm_accel_tb PUBLIC 
 	   include
-	   $ENV{XILINX_HLS}/common/technology/autopilot
+       $ENV{XILINX_HLS}/common/technology/autopilot
        $ENV{XILINX_HLS}/include
-     /home/michal/krs_ws/acceleration/firmware/kr260/sysroots/aarch64-xilinx-linux/usr/include/xrt/
+       $ENV{KRS_WS}//acceleration/firmware/kr260/sysroots/aarch64-xilinx-linux/usr/include/xrt/
 	   )
 
   target_link_libraries(stereolbm_accel_tb
