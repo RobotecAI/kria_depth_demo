@@ -371,7 +371,11 @@ source /home/${USER}/krs_ws/install/setup.bash
 cd /home/${USER}/stereolbm_accel
 ./stereolbm_accel_tb
 ```
-
+Note: After each power cycle of the KRIA make sure to load the FPGA Bitstream before running the above by:
+```bash
+sudo xmutil unloadapp
+sudo xmutil loadapp stereolbm_accel
+```
 On x86:
 ```
 source ${SIM_PACKAGE}/ros2_ws/install/setup.bash
