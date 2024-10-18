@@ -1,40 +1,32 @@
-# Kria depth demo
+# Kria K260 depth demo
 
-This demo presents a use case for FPGA SOC Kria K260.
-FPGA (Field programmable gateway array) is a technology that allows to creation of custom hardware to fulfill complex tasks in a parallel and deterministic manner.
-In contrast to programming processors, designing an FPGA solution does not limit one to the architecture constraints of a given platform.
+This demo presents an appication of [AMD Kria K260](https://www.amd.com/en/products/system-on-modules/kria/k26/kr260-robotics-starter-kit.html) to computations of stereo-vision based depth. It also showcases a Hardware-in-the-loop (HIL) simulation with [Open 3D Engine (O3DE)](www.o3de.org) and the use of Robot Operating System (ROS) interfaces.
+
+The key computation is offloaded to FPGA (Field-programmable gate array) for efficiency and determinism.
 
 In this simple project number of technologies are utilized:
-- [Kria 260](https://xilinx.github.io/kria-apps-docs/home/build/html/index.html) \
-It is a system-on-chip solution that can be integrated in robotics design.
-- [Vitis](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis.html)
-It is a platform to develop solutions deployed in FPGA.
-- [Kria Robotics stack](https://xilinx.github.io/KRS/sphinx/build/html/index.html)
-It is a ROS 2 set of tools, nodes, and libraries to deploy hardware-accelerated solutions to Kria SOMs.
-
-
-## Nomenclature
-
-- KRIA (https://www.amd.com/en/products/system-on-modules/kria/k26/kr260-robotics-starter-kit.html) - AMD Kria KR260 board with SOM platform
-- X86 - Host machine, PC, or laptop
+- [AMD Kria 260](https://xilinx.github.io/kria-apps-docs/home/build/html/index.html), a board which is well-suited for robotics.
+- [AMD Vitis :tm:](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis.html), a platform to develop solutions for FPGA.
+- [Kria Robotics stack](https://xilinx.github.io/KRS/sphinx/build/html/index.html), a ROS 2 set of tools, nodes, and libraries to deploy hardware-accelerated solutions to Kria SOMs.
 
 ## Prerequisites
-- X86 machine with Ubuntu 22.04 and plenty of free space (~300 Gb)
+- Host machine (X86) with Ubuntu 22.04 and plenty of free space (~300 Gb), primarily for Vitis. This machine will also run the HIL simulation.
+- KR260 board with Ubuntu 22.04, which you set up following [this guide](https://www.amd.com/en/products/system-on-modules/kria/k26/kr260-robotics-starter-kit/getting-started/setting-up-the-sd-card-image.html).
+- [ROS 2 Humble installed](https://docs.ros.org/en/humble/Installation.html) on KR260 and x86.
 
-- KRIA KR260 board with Ubuntu 22.04 \
-  Refer to [Getting Started](https://www.amd.com/en/products/system-on-modules/kria/k26/kr260-robotics-starter-kit/getting-started/setting-up-the-sd-card-image.html)
+## Install Vitis (Vivado) on the host machine
 
-- ROS 2 Humble installed on KR260 and x86. Refer to [Installation](https://docs.ros.org/en/humble/Installation.html)
+Download [Vivado 2022.1](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/archive.html), preferably [Xilinx_Unified_2022.1](https://www.xilinx.com/member/forms/download/xef.html?filename=Xilinx_Unified_2022.1_0420_0327.tar.gz). The file is quite large, so do not forget to check MD5 checksum before installation. 
+Install Vitis at default location `/tools/Xilinx`.  
 
-## Install Vitis (Vivado) on X86
+#### Troubleshooting
 
-Vivado 2022.1 needs to be installed on X86. Please download Vivado 2022.1 from [Download](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/archive.html).  I recommend to use [Xilinx_Unified_2022.1](https://www.xilinx.com/member/forms/download/xef.html?filename=Xilinx_Unified_2022.1_0420_0327.tar.gz). File is quite huge, so do not forget to check MD5 checksum before installation. 
-Install Vitis at default location `/tools/Xilinx`. I've experienced some freezing and needed to install those packages (according to recommendation found at [Support](https://support.xilinx.com/s/question/0D54U00005astbhSAA/vivado-gets-stuck-or-takes-more-than-1-to-15-days-in-final-processing-ie-generating-installed-device-list-when-trying-to-install-in-ubuntu-2204?language=en_US)):
+If you experience freezing, follow the [support recommendation](https://support.xilinx.com/s/question/0D54U00005astbhSAA/vivado-gets-stuck-or-takes-more-than-1-to-15-days-in-final-processing-ie-generating-installed-device-list-when-trying-to-install-in-ubuntu-2204?language=en_US) and install these:
 ```bash 
 sudo apt-get install libtinfo5 libncurses5
 ```
 
-## Install ROS2 Humble on KRIA
+## Install ROS 2 Humble on KRIA
 
 Setup Locale:
    ```bash
