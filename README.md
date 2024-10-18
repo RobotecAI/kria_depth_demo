@@ -226,19 +226,6 @@ rm -r build-kr260-ubuntu/stereolbm_accel/
 colcon build --executor sequential --event-handlers console_direct+ --build-base=build-kr260-ubuntu --install-base=install-kr260-ubuntu --merge-install --mixin kr260 --cmake-args -DNOKERNELS=false --packages-select stereolbm_accel
 ```
 
-Below is for building all of the accelerated nodes examples along with the depth node, this takes more than 2 hours on Ryzen 7 9700x (not needed for this demo):
-```bash 
-cd $KRS_WS
-unset RMW_IMPLEMENTATION
-source /tools/Xilinx/Vitis/2022.1/settings64.sh  # source Xilinx tools
-source /opt/ros/humble/setup.bash  # Sources system ROS 2 installation.
-source ./install/setup.bash  # Source KRS
-export PATH="/usr/bin":$PATH
-
-colcon build --executor sequential --event-handlers console_direct+ --build-base=build-kr260-ubuntu --install-base=install-kr260-ubuntu --merge-install --mixin kr260 --cmake-args -DNOKERNELS=false
-
-```
-
 Next, you need to copy to the board (assuming that Kria is configured as host in your `.ssh/config`, and the user name is 'ubuntu'):
 
 ```bash
@@ -254,8 +241,7 @@ sudo xmutil unloadapp #Removes application bitstream. (Takes slot number, defaul
 sudo xmutil loadapp stereolbm_accel #Loads requested application configuration bitstream to programmable logic if the device is available.
 ```
 
-
-Rest can be done as the user
+Next, source KRS and run accelerated node:
 ```
 source /home/$USER/krs_ws/install/setup.bash
 cd /home/$USER/stereolbm_accel
@@ -269,7 +255,7 @@ Please create a file with the DDS configuration on the x86 and Kria board.
 This configuration assumes that peer addresses are:
  - 192.168.99.1 
  - 192.168.99.2
-Do not forget to adjust the interface name:
+Do not forget to adjust the interface name, substitute 'enp46s0' for your network interface.
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config
@@ -302,7 +288,7 @@ https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclo
 </CycloneDDS>
 ```
 
-Next add reference created file (e.g. `~/kria_cyclone.xml`) in `~/.bashrc`:
+Now, add reference to created file (e.g. `~/kria_cyclone.xml`) in `~/.bashrc`:
 ```bash 
 export CYCLONEDDS_URI=file:///home/$USER/kria_cyclone.xml
 
@@ -312,7 +298,7 @@ export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 export ROS_DOMAIN_ID=34
 ```
 
-Finally set the network stack on both x86 and Kria:
+Finally, set the network stack on x86 and Kria:
 ```
 sudo vim /etc/sysctl.d/10-cyclone-max.conf
 ```
@@ -329,10 +315,9 @@ Reboot both x86 and Kria.
 
 The simulator is available under this repository [ROSCon2023Demo](https://github.com/RobotecAI/ROSCon2023Demo).
 
-The prebuilt package is available here:
-[Download  for ROS 2 humble](https://robotecai-my.sharepoint.com/:u:/g/personal/michal_pelka_robotec_ai/EYMO9TR5EI9CrU8M2l2lPTwBWJ9xf4QGXQCONQ0THzncDQ?e=J8E3uX)
+[Download prebuilt package for ROS 2 humble](https://robotecai-my.sharepoint.com/:u:/g/personal/michal_pelka_robotec_ai/EYMO9TR5EI9CrU8M2l2lPTwBWJ9xf4QGXQCONQ0THzncDQ?e=J8E3uX)
 
-Install prerequisites
+Install prerequisites:
 ```bash
 sudo apt install ros-${ROS_DISTRO}-ackermann-msgs ros-${ROS_DISTRO}-control-toolbox ros-${ROS_DISTRO}-nav-msgs ros-${ROS_DISTRO}-gazebo-msgs ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-ur-msgs ros-${ROS_DISTRO}-moveit-servo ros-${ROS_DISTRO}-moveit-visual-tools ros-${ROS_DISTRO}-moveit ros-${ROS_DISTRO}-pilz-industrial-motion-planner ros-${ROS_DISTRO}-controller-manager ros-${ROS_DISTRO}-ur-client-library ros-${ROS_DISTRO}-nav2-common ros-${ROS_DISTRO}-navigation2 python3-rosdep2 
 ```
@@ -347,7 +332,7 @@ Create SIM_PACKAGE environment variable (adjust accordingly to the chosen direct
 export SIM_PACKAGE=~/rosconpkg
 ```
 
-After downloading the package and unzipping it under ${SIM_PACKAGE} on x86 you need to build Simulator's package:
+After downloading the package and unzipping it under ${SIM_PACKAGE} on X86 you need to build Simulator's ROS 2 workspace:
 ```bash
 cd ${SIM_PACKAGE}/ros2_ws
 rosdep install --ignore-src --from-paths src/Universal_Robots_ROS2_Driver -y
@@ -355,7 +340,7 @@ colcon build --symlink-install
 ```
 
 
-### Running system
+### Running HIL simulation
 
 On Kria:
 ```
