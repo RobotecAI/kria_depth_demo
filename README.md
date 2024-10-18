@@ -1,5 +1,5 @@
 # Kria K260 depth demo
-
+![](doc/setup.jpg)
 This demo presents an appication of [AMD Kria K260](https://www.amd.com/en/products/system-on-modules/kria/k26/kr260-robotics-starter-kit.html) to computations of stereo-vision based depth. It also showcases a Hardware-in-the-loop (HIL) simulation with [Open 3D Engine (O3DE)](www.o3de.org) and the use of Robot Operating System (ROS) interfaces.
 
 The key computation is offloaded to FPGA (Field-programmable gate array) for efficiency and determinism.
