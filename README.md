@@ -315,7 +315,7 @@ Reboot both x86 and Kria.
 
 The simulator is available under this repository [ROSCon2023Demo](https://github.com/RobotecAI/ROSCon2023Demo).
 
-[Download prebuilt package for ROS 2 humble](https://robotecai-my.sharepoint.com/:u:/g/personal/michal_pelka_robotec_ai/EYMO9TR5EI9CrU8M2l2lPTwBWJ9xf4QGXQCONQ0THzncDQ?e=J8E3uX)
+[Download prebuilt package for ROS 2 humble](https://robotec-ml-roscon2024-demos.s3.eu-central-1.amazonaws.com/KriaDepthDemo_roscondemo_jammyhumble_fab8e8.zip)
 
 Install prerequisites:
 ```bash
