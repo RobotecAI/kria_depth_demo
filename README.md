@@ -357,5 +357,5 @@ sudo xmutil loadapp stereolbm_accel
 On **x86**:
 ```
 source ${SIM_PACKAGE}/ros2_ws/install/setup.bash
-${SIM_PACKAGE}/ROSCon2023DemoGamePackage/ROSCon2023Demo.GameLauncher -r_fullscreen=false -bg_ConnectToAssetProcessor=0 -r_width=2560 -r_height=1440 -r_resolutionMode=1
+${SIM_PACKAGE}/ROSCon2023DemoGamePackage/ROSCon2023Demo.GameLauncher -r_fullscreen=false -bg_ConnectToAssetProcessor=0 -r_width=960 -r_height=960 +LoadLevel levels/demostereo/demostereo.spawnable +r_displayInfo 0
 ```
