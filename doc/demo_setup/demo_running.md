@@ -1,7 +1,7 @@
 # Warning
 
 This Readme is intended for setting up demo with specific hardware using prebuilt images.
-
+Please refer to [Readme](../../README.md) fo generic build and setup instruction.
 
 # Wiring
 
@@ -21,10 +21,12 @@ ssh to Kria
 ssh kria # which is  ssh mpelka@192.168.99.1
 
 ```
+
 Password is:
 ```
 qwerty123
 ```
+
 # Load app
 We need to do that every restart of Kria board.
 ```bash
@@ -60,6 +62,6 @@ Start rqt:
 ```bash
 # at x86 in terminal 3:
 rqt
-``
+```
 
 

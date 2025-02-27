@@ -1,7 +1,7 @@
 # Warning
 
 This Readme is intended for setting up demo with specific hardware using prebuilt images.
-
+Please refer to [Readme](../../README.md) fo generic build 
 
 # Wiring
 
