@@ -167,7 +167,7 @@ alias hil_kria_start="source /home/$USER/krs_ws/install/setup.bash && cd /home/$
 alias hil_ssh_kria="ssh kria -t 'bash -ic \"hil_kria_start>>/dev/null\"'"
 ```
 
-Install ROS 2 humble accrording to manual.
+Install ROS 2 humble accrording to [manual](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html)
 
 Install packages:
 ```
@@ -185,11 +185,12 @@ rosdep install --ignore-src --from-paths src/Universal_Robots_ROS2_Driver -y
 colcon build --symlink-install
 source install/setup.bash
 ```
+# Test Game Launcher
 
 Test Game Launcher
 ```
 source ~/.bashrc
-Game
+hil_Game
 ```
 
 # Verify connectivity
@@ -209,6 +210,7 @@ Password is:
 ```
 qwerty123
 ```
+
 # Load app
 We need to do that every restart of Kria board.
 ```bash
