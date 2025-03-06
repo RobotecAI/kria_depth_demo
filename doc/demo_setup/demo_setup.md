@@ -143,7 +143,7 @@ Add following alliases to `.bashrc`, **adjust `AMD Radeon RX 7800 XT (RADV GFX11
 ```bash
 source /opt/ros/humble/setup.bash
 
-export CYCLONEDDS_URI=file:///home/user/kria_cyclone.xml
+export CYCLONEDDS_URI=file:///home/$USER/kria_cyclone.xml
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 #export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 export ROS_DOMAIN_ID=34
