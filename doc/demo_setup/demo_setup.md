@@ -105,8 +105,7 @@ https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclo
 </CycloneDDS>
 ```
 
-According to `
-Create file `/etc/sysctl.d/10-cyclone-max.conf` and add content:
+According to [DDS-Tunning](https://docs.ros.org/en/humble/How-To-Guides/DDS-tuning.html) Create file `/etc/sysctl.d/10-cyclone-max.conf` and add content:
 ```
 net.core.rmem_max=2147483647
 
