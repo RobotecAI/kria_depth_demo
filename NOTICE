@@ -1,0 +1,5 @@
+kria_depth_demo
+Copyright 2024-2026 Robotec.ai sp. z o.o.
+
+The packages in krs_ws/src/stereolbm_accel and krs_ws/src/stereolbm_cpu are derived from
+ros-acceleration/acceleration_examples (Apache-2.0), Copyright Xilinx, Inc. and Acceleration Robotics.
